@@ -700,6 +700,24 @@ function MessageBubble({
   answer = answer.trim();
 
   const markdownComponents = {
+    a({ node, children, href, ...props }: any) {
+      const text = String(children);
+      if (text.startsWith("badge:")) {
+        const label = text.replace("badge:", "").trim();
+        return (
+          <a href={href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-2 py-0.5 mx-1 rounded-full bg-zinc-800/80 border border-zinc-700/50 text-[11px] font-medium text-zinc-300 hover:bg-zinc-700 transition-colors no-underline align-middle shadow-sm">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-orange-400"><path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5"/></svg>
+            <span>{label}</span>
+          </a>
+        );
+      }
+      return (
+        <a href={href} className="text-blue-400 hover:text-blue-300 underline underline-offset-2 inline-flex items-center gap-0.5" target="_blank" rel="noopener noreferrer" {...props}>
+          {children}
+          {href?.startsWith("http") && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-70"><path d="M7 17L17 7"/><path d="M7 7h10v10"/></svg>}
+        </a>
+      );
+    },
     pre({ node, children, ...props }: any) {
       const codeChild = node?.children?.[0];
       const className = codeChild?.properties?.className || [];
