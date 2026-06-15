@@ -718,6 +718,9 @@ function MessageBubble({
         </a>
       );
     },
+    hr({ node, ...props }: any) {
+      return <hr className="my-6 border-t border-zinc-800" {...props} />;
+    },
     pre({ node, children, ...props }: any) {
       const codeChild = node?.children?.[0];
       const className = codeChild?.properties?.className || [];
@@ -838,8 +841,8 @@ function MessageBubble({
 
         {/* Bubble — show answer, or fallback when done streaming with no separate answer */}
         {(answer || !isStreaming) && (
-          <div className="text-sm leading-relaxed text-zinc-200">
-            <div className="prose prose-sm prose-zinc prose-p:leading-relaxed prose-pre:p-0 prose-invert max-w-none">
+          <div className="text-[15px] leading-relaxed text-zinc-200">
+            <div className="prose prose-zinc prose-p:leading-relaxed prose-pre:p-0 prose-invert max-w-none prose-headings:font-semibold prose-h2:text-xl prose-h3:text-lg prose-ul:pl-4 prose-ol:pl-4">
               {answer ? (
                   <ReactMarkdown 
                     remarkPlugins={[remarkGfm]}
