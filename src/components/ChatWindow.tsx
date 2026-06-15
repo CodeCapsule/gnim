@@ -983,6 +983,7 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
   );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fileModal, setFileModal] = useState<{ file: File; preview: string } | null>(null);
   const { remaining, isLimited, increment, resetLabel } = useRateLimit();
 
   const convoId = conversation?.id ?? generateId();
@@ -1016,11 +1017,34 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      alert(`Selected file: ${file.name}\n\n(File uploading would be handled by the backend)`);
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const preview = typeof ev.target?.result === "string" ? ev.target.result : "";
+        setFileModal({ file, preview });
+      };
+      // Read as text for text-based files, as dataURL for images
+      if (file.type.startsWith("image/")) {
+        reader.readAsDataURL(file);
+      } else {
+        reader.readAsText(file);
+      }
     }
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+  };
+
+  // Send file content to AI
+  const handleSendFile = () => {
+    if (!fileModal) return;
+    const { file, preview } = fileModal;
+    if (file.type.startsWith("image/")) {
+      sendMessage(`[User attached an image: ${file.name}]\n\nPlease acknowledge the image was shared. (Image rendering is not yet supported in this interface.)`);
+    } else {
+      const truncated = preview.length > 15000 ? preview.slice(0, 15000) + "\n\n[File truncated — too large to show fully]" : preview;
+      sendMessage(`[User attached a file: ${file.name}]\n\nHere is its content:\n\n\`\`\`\n${truncated}\n\`\`\`\n\nPlease analyze and help with this file.`);
+    }
+    setFileModal(null);
   };
 
   // Record click handler
@@ -1183,7 +1207,83 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
     sendMessage(`[The webpage at ${url} has been fetched. Here is its content:]\n\n${text}\n\nPlease analyze and summarize the above webpage content as requested.`);
   };
 
+  // Helper: format file size
+  const formatSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
   return (
+    <>
+      {/* ===== FILE MODAL ===== */}
+      {fileModal && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+          onClick={() => setFileModal(null)}
+        >
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+
+          {/* Modal Card */}
+          <div
+            className="relative z-10 w-full max-w-md bg-[#1c1c1e] border border-zinc-700/60 rounded-2xl shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-zinc-800">
+              <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center flex-shrink-0">
+                <Paperclip size={16} className="text-blue-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[14px] font-semibold text-white truncate">{fileModal.file.name}</p>
+                <p className="text-[12px] text-zinc-500">
+                  {fileModal.file.type || "Unknown type"} · {formatSize(fileModal.file.size)}
+                </p>
+              </div>
+              <button
+                onClick={() => setFileModal(null)}
+                className="w-7 h-7 rounded-full flex items-center justify-center text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700/60 transition-colors flex-shrink-0"
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 1l10 10M11 1L1 11" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+              </button>
+            </div>
+
+            {/* Preview */}
+            <div className="px-5 py-4 max-h-[240px] overflow-y-auto">
+              {fileModal.file.type.startsWith("image/") ? (
+                <img
+                  src={fileModal.preview}
+                  alt={fileModal.file.name}
+                  className="w-full rounded-xl object-contain max-h-[200px]"
+                />
+              ) : (
+                <pre className="text-[12px] leading-relaxed text-zinc-300 font-mono whitespace-pre-wrap break-words">
+                  {fileModal.preview.slice(0, 1500)}{fileModal.preview.length > 1500 ? "\n\n..." : ""}
+                </pre>
+              )}
+            </div>
+
+            {/* Footer Actions */}
+            <div className="flex items-center gap-3 px-5 py-4 border-t border-zinc-800 bg-zinc-900/40">
+              <button
+                onClick={() => setFileModal(null)}
+                className="flex-1 px-4 py-2 text-[13px] font-medium text-zinc-400 hover:text-zinc-200 bg-zinc-800/60 hover:bg-zinc-700/60 rounded-xl transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSendFile}
+                className="flex-1 px-4 py-2 text-[13px] font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-xl transition-colors flex items-center justify-center gap-2"
+              >
+                <ArrowUp size={14} />
+                Send to AI
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       {/* Messages */}
       <div className="flex-1 overflow-y-auto">
@@ -1555,5 +1655,6 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
         </div>
       </div>
     </div>
+    </>
   );
 }
