@@ -1000,6 +1000,7 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [stagedFile, setStagedFile] = useState<{ file: File; preview: string } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const { remaining, isLimited, increment, resetLabel } = useRateLimit();
 
   const convoId = conversation?.id ?? generateId();
@@ -1028,6 +1029,39 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Drag and drop handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    // Only set dragging to false if we are leaving the main container
+    if (e.currentTarget === e.target) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const preview = typeof ev.target?.result === "string" ? ev.target.result : "";
+        setStagedFile({ file, preview });
+      };
+      if (file.type.startsWith("image/")) {
+        reader.readAsDataURL(file);
+      } else {
+        reader.readAsText(file);
+      }
+    }
+  };
 
   // File change handler
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1236,7 +1270,27 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+    <div 
+      className="flex-1 flex flex-col min-h-0 overflow-hidden relative"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {/* Drag Overlay */}
+      {isDragging && (
+        <div className="absolute inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center border-2 border-dashed border-blue-500/50 m-4 rounded-3xl transition-all pointer-events-none">
+          <div className="flex flex-col items-center gap-4 bg-zinc-900/90 px-8 py-6 rounded-2xl shadow-2xl border border-zinc-800">
+            <div className="w-16 h-16 rounded-full bg-blue-500/20 flex items-center justify-center animate-bounce">
+              <Paperclip size={32} className="text-blue-400" />
+            </div>
+            <div className="text-center">
+              <h3 className="text-xl font-semibold text-white mb-1">Drop file here</h3>
+              <p className="text-sm text-zinc-400">Attach a file or image to your message</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Messages */}
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-[866px] mx-auto w-full px-4 py-6">
