@@ -36,6 +36,22 @@ function htmlToText(html: string): string {
   return text;
 }
 
+// Detect if URL is a known JSON API (GitHub, etc.)
+function getAcceptHeader(parsedUrl: URL): string {
+  const hostname = parsedUrl.hostname;
+  if (hostname === "api.github.com") {
+    return "application/vnd.github.v3+json";
+  }
+  if (
+    hostname.endsWith("api.github.com") ||
+    parsedUrl.pathname.includes("/api/") ||
+    parsedUrl.pathname.endsWith(".json")
+  ) {
+    return "application/json, text/plain, */*";
+  }
+  return "text/html,application/xhtml+xml,application/xml;q=0.9,text/plain;q=0.8,*/*;q=0.7";
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const url = searchParams.get("url");
@@ -55,16 +71,22 @@ export async function GET(req: NextRequest) {
     return Response.json({ error: "Invalid URL" }, { status: 400 });
   }
 
+  const acceptHeader = getAcceptHeader(parsedUrl);
+
   try {
     const response = await fetch(parsedUrl.toString(), {
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml,text/plain",
+        Accept: acceptHeader,
         "Accept-Language": "en-US,en;q=0.9",
+        // GitHub API extras
+        ...(parsedUrl.hostname === "api.github.com"
+          ? { "X-GitHub-Api-Version": "2022-11-28" }
+          : {}),
       },
-      // 10 second timeout via AbortController
-      signal: AbortSignal.timeout(10000),
+      // 15 second timeout
+      signal: AbortSignal.timeout(15000),
     });
 
     if (!response.ok) {
@@ -77,15 +99,30 @@ export async function GET(req: NextRequest) {
     const contentType = response.headers.get("content-type") ?? "";
     let text = "";
 
-    if (contentType.includes("text/plain")) {
+    if (contentType.includes("application/json")) {
+      // Pretty-print JSON so the AI can read it nicely
+      const json = await response.json();
+      text = JSON.stringify(json, null, 2);
+    } else if (contentType.includes("text/plain")) {
       text = await response.text();
     } else {
       const html = await response.text();
-      text = htmlToText(html);
+      // If response looks like JSON despite wrong content-type header, try parsing
+      const trimmed = html.trim();
+      if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+        try {
+          const json = JSON.parse(trimmed);
+          text = JSON.stringify(json, null, 2);
+        } catch {
+          text = htmlToText(html);
+        }
+      } else {
+        text = htmlToText(html);
+      }
     }
 
-    // Trim to 12,000 chars to avoid huge context windows
-    const MAX_LEN = 12000;
+    // Trim to 15,000 chars to avoid huge context windows
+    const MAX_LEN = 15000;
     const truncated = text.length > MAX_LEN;
     text = text.slice(0, MAX_LEN);
 
