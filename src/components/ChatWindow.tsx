@@ -55,277 +55,57 @@ const SUGGESTIONS = [
   { prompt: "What is the weather in San Francisco?" },
 ];
 
-// ---------- Model Definitions ----------
-type ModelItem = {
-  id: string;
-  name: string;
-  free: boolean;
-  category: "OpenAI" | "Anthropic" | "Google" | "Meta" | "xAI" | "Mistral" | "DeepSeek" | "Amazon" | "Alibaba" | "Cohere" | "Bytedance" | "Other";
-  capabilities: ("tool" | "vision" | "reasoning")[];
-};
+// ---------- Mode Definitions ----------
+const MODES = [
+  { id: "text",  label: "GPT-5.5 Pro",   modelId: "openai/gpt-5.5",    description: "Latest text generation" },
+  { id: "image", label: "GPT Image 2.0", modelId: "openai/dall-e-2",    description: "AI image creation" },
+] as const;
+type ModeId = typeof MODES[number]["id"];
 
-const MODELS: ModelItem[] = [
-  // OpenAI
-  { id: "openai/gpt-6", name: "GPT-6", category: "OpenAI", free: true, capabilities: ["reasoning", "tool", "vision"] },
-  { id: "openai/gpt-5.5", name: "GPT-5.5", category: "OpenAI", free: true, capabilities: ["reasoning", "tool", "vision"] },
-  { id: "openai/gpt-4.1", name: "GPT-4.1", category: "OpenAI", free: true, capabilities: ["tool", "vision"] },
-  { id: "openai/gpt-4.1-mini", name: "GPT-4.1 Mini", category: "OpenAI", free: true, capabilities: ["tool", "vision"] },
-  { id: "openai/o4-mini", name: "o4 Mini", category: "OpenAI", free: true, capabilities: ["reasoning", "tool"] },
-  
-  // Anthropic
-  { id: "anthropic/claude-opus-4.9",   name: "Claude Opus 4.9",   category: "Anthropic", free: true, capabilities: ["tool", "vision", "reasoning"] },
-  { id: "anthropic/claude-sonnet-4.6", name: "Claude Sonnet 4.6", category: "Anthropic", free: true, capabilities: ["tool", "vision", "reasoning"] },
-  { id: "anthropic/claude-sonnet-4.5", name: "Claude Sonnet 4.5", category: "Anthropic", free: true, capabilities: ["tool", "vision", "reasoning"] },
-  { id: "anthropic/claude-opus-4.8",   name: "Claude Opus 4.8",   category: "Anthropic", free: true, capabilities: ["tool", "vision", "reasoning"] },
-  { id: "anthropic/claude-3.5-haiku",  name: "Claude 3.5 Haiku",  category: "Anthropic", free: true, capabilities: ["tool", "vision"] },
-
-  // Google
-  { id: "google/gemini-2.5-pro-ultra", name: "Gemini 2.5 Pro Ultra", category: "Google", free: true, capabilities: ["tool", "vision", "reasoning"] },
-  { id: "google/gemini-2.5-pro",       name: "Gemini 2.5 Pro",       category: "Google", free: true, capabilities: ["tool", "vision", "reasoning"] },
-  { id: "google/gemini-2.5-flash",     name: "Gemini 2.5 Flash",     category: "Google", free: true, capabilities: ["tool", "vision", "reasoning"] },
-  { id: "google/gemini-2.0-flash",     name: "Gemini 2.0 Flash",     category: "Google", free: true, capabilities: ["tool", "vision"] },
-  { id: "google/gemini-2.0-flash-lite",name: "Gemini 2.0 Flash Lite",category: "Google", free: true,  capabilities: ["tool", "vision"] },
-
-  // Meta (Llama)
-  { id: "meta/llama-5-100b",           name: "Llama 5 100B",         category: "Meta", free: true,  capabilities: ["tool", "reasoning"] },
-  { id: "meta/llama-3.3-70b",          name: "Llama 3.3 70B",        category: "Meta", free: true,  capabilities: ["tool"] },
-  { id: "meta/llama-4-scout",          name: "Llama 4 Scout",        category: "Meta", free: true,  capabilities: ["tool", "reasoning"] },
-  
-  // Mistral
-  { id: "mistral/mistral-medium-3",    name: "Mistral Medium 3",     category: "Mistral", free: true,  capabilities: ["tool"] },
-
-  // DeepSeek
-  { id: "deepseek/deepseek-v3",        name: "DeepSeek V3",          category: "DeepSeek", free: true,  capabilities: ["tool", "reasoning"] },
-  { id: "deepseek/deepseek-r1",        name: "DeepSeek R1",          category: "DeepSeek", free: true, capabilities: ["reasoning", "tool"] },
-
-  // xAI
-  { id: "xai/grok-5",       name: "Grok 5",      category: "xAI", free: true, capabilities: ["tool", "vision", "reasoning"] },
-  { id: "xai/grok-4",       name: "Grok 4",      category: "xAI", free: true, capabilities: ["tool", "vision", "reasoning"] },
-  { id: "xai/grok-3",       name: "Grok 3",      category: "xAI", free: true, capabilities: ["tool", "vision"] },
-  { id: "xai/grok-3-mini",  name: "Grok 3 Mini", category: "xAI", free: true, capabilities: ["tool", "reasoning"] },
-];
-
-// ---------- Model Logo Helper (monochrome — used in the badge) ----------
+// ---------- Mode Icon helpers ----------
+function GptTextIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="2" y="2" width="20" height="20" rx="6" fill="#10b981" />
+      <circle cx="12" cy="12" r="5" stroke="white" strokeWidth="1.75" />
+      <circle cx="12" cy="12" r="1.5" fill="white" />
+    </svg>
+  );
+}
+function GptImageIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="2" y="2" width="20" height="20" rx="6" fill="#8b5cf6" />
+      <rect x="6" y="8" width="12" height="8" rx="2" stroke="white" strokeWidth="1.5" />
+      <circle cx="9" cy="11" r="1" fill="white" />
+      <path d="M7 16l3-3 2 2 2-2 3 3" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+// Backward-compat stub to avoid breaking existing refs (now unused but kept for safety)
 function ModelLogo({ name, className }: { name: string; className?: string }) {
-  const bg = "#27272a"; // monochrome background
-
-  if (name.includes("DeepSeek")) {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="2" y="2" width="20" height="20" rx="6" fill={bg} />
-        <path d="M12 7.5v9M7.5 12h9" stroke="white" strokeWidth="2" strokeLinecap="round" />
-      </svg>
-    );
-  }
-  if (name.includes("Kimi")) {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="2" y="2" width="20" height="20" rx="6" fill={bg} />
-        <path d="M12 7l5.5 9.5H6.5L12 7z" fill="white" />
-      </svg>
-    );
-  }
-  if (name.includes("GPT") || name.includes("o3") || name.includes("o4")) {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="2" y="2" width="20" height="20" rx="6" fill={bg} />
-        <circle cx="12" cy="12" r="5" stroke="white" strokeWidth="1.75" />
-        <circle cx="12" cy="12" r="1.5" fill="white" />
-      </svg>
-    );
-  }
-  if (name.includes("Grok")) {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="2" y="2" width="20" height="20" rx="6" fill={bg} stroke="#3f3f46" strokeWidth="0.5" />
-        <path d="M8.5 8.5l7 7M15.5 8.5l-7 7" stroke="white" strokeWidth="2" strokeLinecap="round" />
-      </svg>
-    );
-  }
-  if (name.includes("Claude")) {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="2" y="2" width="20" height="20" rx="6" fill={bg} />
-        <path d="M8 16l4-8 4 8M9.5 13h5" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    );
-  }
-  if (name.includes("Gemini")) {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="2" y="2" width="20" height="20" rx="6" fill={bg} />
-        <path d="M12 7v10M8.5 10.5C8.5 10.5 10 12 12 12s3.5-1.5 3.5-1.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    );
-  }
-  if (name.includes("Llama")) {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="2" y="2" width="20" height="20" rx="6" fill={bg} />
-        <path d="M9 16V9.5a3 3 0 016 0V16" stroke="white" strokeWidth="1.75" strokeLinecap="round" />
-      </svg>
-    );
-  }
-  if (name.includes("Mistral") || name.includes("Codestral")) {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="2" y="2" width="20" height="20" rx="6" fill={bg} />
-        <path d="M7 9h10M7 12h10M7 15h6" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    );
-  }
-  if (name.includes("Nova")) {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="2" y="2" width="20" height="20" rx="6" fill={bg} />
-        <path d="M12 7l1.5 4.5H18l-3.75 2.75 1.5 4.5L12 16l-3.75 2.75 1.5-4.5L6 11.5h4.5L12 7z" fill="white" />
-      </svg>
-    );
-  }
-  if (name.includes("Qwen")) {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="2" y="2" width="20" height="20" rx="6" fill={bg} />
-        <path d="M12 7.5v9M7.5 12h9" stroke="white" strokeWidth="2" strokeLinecap="round" />
-      </svg>
-    );
-  }
-  if (name.includes("Command")) {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="2" y="2" width="20" height="20" rx="6" fill={bg} />
-        <path d="M8 12h8M12 8l4 4-4 4" stroke="white" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    );
-  }
-  if (name.includes("Seed")) {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="2" y="2" width="20" height="20" rx="6" fill={bg} />
-        <circle cx="12" cy="12" r="4" stroke="white" strokeWidth="1.75" />
-        <circle cx="12" cy="12" r="1.5" fill="white" />
-      </svg>
-    );
-  }
-  // Default monochrome
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="2" y="2" width="20" height="20" rx="6" fill={bg} />
-      <path d="M12 7.5v9M7.5 12h9" stroke="white" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  );
+  const isFallback = true; void isFallback; void name;
+  return <GptTextIcon className={className} />;
 }
-
-
-// Colored variant for inside the dropdown
 function ModelLogoColored({ name, className }: { name: string; className?: string }) {
-  if (name.includes("DeepSeek")) {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="2" y="2" width="20" height="20" rx="6" fill="#1a56db" />
-        <path d="M12 7.5v9M7.5 12h9" stroke="white" strokeWidth="2" strokeLinecap="round" />
-      </svg>
-    );
-  }
-  if (name.includes("Kimi")) {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="2" y="2" width="20" height="20" rx="6" fill="#059669" />
-        <path d="M12 7l5.5 9.5H6.5L12 7z" fill="white" />
-      </svg>
-    );
-  }
-  if (name.includes("GPT") || name.includes("o3") || name.includes("o4")) {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="2" y="2" width="20" height="20" rx="6" fill="#10b981" />
-        <circle cx="12" cy="12" r="5" stroke="white" strokeWidth="1.75" />
-        <circle cx="12" cy="12" r="1.5" fill="white" />
-      </svg>
-    );
-  }
-  if (name.includes("Grok")) {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="2" y="2" width="20" height="20" rx="6" fill="#18181b" stroke="#3f3f46" strokeWidth="0.5" />
-        <path d="M8.5 8.5l7 7M15.5 8.5l-7 7" stroke="white" strokeWidth="2" strokeLinecap="round" />
-      </svg>
-    );
-  }
-  if (name.includes("Claude")) {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="2" y="2" width="20" height="20" rx="6" fill="#c96442" />
-        <path d="M8 16l4-8 4 8M9.5 13h5" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    );
-  }
-  if (name.includes("Gemini")) {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="2" y="2" width="20" height="20" rx="6" fill="#4285f4" />
-        <path d="M12 7v10M8.5 10.5C8.5 10.5 10 12 12 12s3.5-1.5 3.5-1.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    );
-  }
-  if (name.includes("Llama")) {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="2" y="2" width="20" height="20" rx="6" fill="#0064e0" />
-        <path d="M9 16V9.5a3 3 0 016 0V16" stroke="white" strokeWidth="1.75" strokeLinecap="round" />
-      </svg>
-    );
-  }
-  if (name.includes("Mistral") || name.includes("Codestral")) {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="2" y="2" width="20" height="20" rx="6" fill="#f97316" />
-        <path d="M7 9h10M7 12h10M7 15h6" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    );
-  }
-  if (name.includes("Nova")) {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="2" y="2" width="20" height="20" rx="6" fill="#f59e0b" />
-        <path d="M12 7l1.5 4.5H18l-3.75 2.75 1.5 4.5L12 16l-3.75 2.75 1.5-4.5L6 11.5h4.5L12 7z" fill="white" />
-      </svg>
-    );
-  }
-  if (name.includes("Qwen")) {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="2" y="2" width="20" height="20" rx="6" fill="#6366f1" />
-        <path d="M12 7.5v9M7.5 12h9" stroke="white" strokeWidth="2" strokeLinecap="round" />
-      </svg>
-    );
-  }
-  if (name.includes("Command")) {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="2" y="2" width="20" height="20" rx="6" fill="#0891b2" />
-        <path d="M8 12h8M12 8l4 4-4 4" stroke="white" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    );
-  }
-  if (name.includes("Seed")) {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="2" y="2" width="20" height="20" rx="6" fill="#7c3aed" />
-        <circle cx="12" cy="12" r="4" stroke="white" strokeWidth="1.75" />
-        <circle cx="12" cy="12" r="1.5" fill="white" />
-      </svg>
-    );
-  }
-  // Default
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="2" y="2" width="20" height="20" rx="6" fill="#52525b" />
-      <path d="M12 7.5v9M7.5 12h9" stroke="white" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  );
+  void name;
+  return <GptTextIcon className={className} />;
 }
+// End placeholder stubs — real UI uses GptTextIcon / GptImageIcon
+function _placeholder_to_avoid_unused_warning() {
+  return { ModelLogo, ModelLogoColored };
+}
+void _placeholder_to_avoid_unused_warning;
 
+// ---------- was: ModelLogoColored end (lines removed) ----------
+// Keep Weather Widget
+function _separatorAfterLogos() {}
+void _separatorAfterLogos;
+function ModelLogoBrand({ name, className }: { name: string; className?: string }) {
+  void name;
+  return <GptTextIcon className={className} />;
+}
+void ModelLogoBrand;
 // ---------- Weather Widget ----------
 function getWeatherIcon(code: number, isDay: boolean) {
   if (code >= 1 && code <= 3) return isDay ? CloudSun : CloudMoon;
@@ -839,34 +619,53 @@ function MessageBubble({
           </div>
         )}
 
+
         {/* Bubble — show answer, or fallback when done streaming with no separate answer */}
         {(answer || !isStreaming) && (
           <div className="text-[15px] leading-relaxed text-zinc-200">
-            <div className="prose prose-zinc prose-p:leading-relaxed prose-pre:p-0 prose-invert max-w-none prose-headings:font-semibold prose-h2:text-xl prose-h3:text-lg prose-ul:pl-4 prose-ol:pl-4">
-              {answer ? (
-                  <ReactMarkdown 
-                    remarkPlugins={[remarkGfm]}
-                    components={markdownComponents}
-                  >
-                    {answer}
-                  </ReactMarkdown>
-              ) : (
-                !isStreaming && thought && (
-                  // Model put everything inside <think>; surface the thought as the answer
-                  <ReactMarkdown 
-                    remarkPlugins={[remarkGfm]}
-                    components={markdownComponents}
-                  >
-                    {thought}
-                  </ReactMarkdown>
-                )
-              )}
-              {isStreaming && answer && (
-                <span className="inline-block w-2.5 h-2.5 rounded-full bg-zinc-400 ml-1.5 animate-pulse align-middle" />
-              )}
-            </div>
+            {/* Generated image display */}
+            {answer && answer.startsWith("[GENERATED_IMAGE]:") ? (
+              <div>
+                <img
+                  src={answer.split("\n")[0].replace("[GENERATED_IMAGE]:", "").trim()}
+                  alt="AI generated image"
+                  className="rounded-xl max-w-full max-h-[480px] object-contain border border-zinc-800 shadow-xl"
+                  onError={(e) => { (e.target as HTMLImageElement).alt = "Image failed to load"; }}
+                />
+                {answer.includes("\n\n") && (
+                  <p className="mt-2 text-sm text-zinc-400 italic">
+                    {answer.split("\n\n").slice(1).join("\n\n").replace(/\*/g, "")}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="prose prose-zinc prose-p:leading-relaxed prose-pre:p-0 prose-invert max-w-none prose-headings:font-semibold prose-h2:text-xl prose-h3:text-lg prose-ul:pl-4 prose-ol:pl-4">
+                {answer ? (
+                    <ReactMarkdown 
+                      remarkPlugins={[remarkGfm]}
+                      components={markdownComponents}
+                    >
+                      {answer}
+                    </ReactMarkdown>
+                ) : (
+                  !isStreaming && thought && (
+                    // Model put everything inside <think>; surface the thought as the answer
+                    <ReactMarkdown 
+                      remarkPlugins={[remarkGfm]}
+                      components={markdownComponents}
+                    >
+                      {thought}
+                    </ReactMarkdown>
+                  )
+                )}
+                {isStreaming && answer && (
+                  <span className="inline-block w-2.5 h-2.5 rounded-full bg-zinc-400 ml-1.5 animate-pulse align-middle" />
+                )}
+              </div>
+            )}
           </div>
         )}
+
 
         {/* Still streaming indicator when neither thought nor answer exist yet */}
         {isStreaming && !thought && !answer && (
@@ -984,14 +783,17 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
   const abortRef = useRef<AbortController | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [selectedModel, setSelectedModel] = useState("GPT-5.5");
+  const [selectedMode, setSelectedMode] = useState<ModeId>("text");
+  const [imageGenerating, setImageGenerating] = useState(false);
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
   const [capabilitiesDropdownOpen, setCapabilitiesDropdownOpen] = useState(false);
+  // legacy compat
+  const selectedModel = selectedMode === "text" ? "GPT-5.5 Pro" : "GPT Image 2.0";
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const [thinkingEnabled, setThinkingEnabled] = useState(false);
   const [deepResearchEnabled, setDeepResearchEnabled] = useState(false);
   
-  const [searchQuery, setSearchQuery] = useState("");
+
   const [isRecording, setIsRecording] = useState(false);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<StoredMessage[]>(
@@ -1138,8 +940,7 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
     setInput("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
 
-    const selectedModelId =
-      MODELS.find((m) => m.name === selectedModel)?.id || "openai/gpt-5.5";
+    const selectedModelId = selectedMode === "image" ? "openai/dall-e-2" : "openai/gpt-5.5";
 
     // Optimistic title save
     const title =
@@ -1153,6 +954,35 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
     const assistantPlaceholder: StoredMessage = { id: assistantId, role: "assistant", content: "" };
     setMessages([...newMessages, assistantPlaceholder]);
 
+    // ---- IMAGE GENERATION MODE ----
+    if (selectedMode === "image") {
+      setImageGenerating(true);
+      setIsLoading(true);
+      try {
+        const res = await fetch("/api/generate-image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: userText.trim() }),
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) throw new Error(data.error || "Image generation failed");
+        const imageMsg = `[GENERATED_IMAGE]:${data.url}\n\n*Generated image for: "${userText.trim()}"*`;
+        const finalMessages: StoredMessage[] = [
+          ...newMessages,
+          { id: assistantId, role: "assistant", content: imageMsg },
+        ];
+        setMessages(finalMessages);
+        onUpdate({ id: convoId, title, createdAt: conversation?.createdAt ?? Date.now(), messages: finalMessages });
+      } catch (err: any) {
+        setError(err.message || "Image generation failed");
+        setMessages(newMessages);
+      } finally {
+        setImageGenerating(false);
+        setIsLoading(false);
+      }
+      return;
+    }
+    // ---- END IMAGE GENERATION MODE ----
     setIsLoading(true);
     abortRef.current = new AbortController();
 
@@ -1262,9 +1092,8 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
     setTimeout(() => textareaRef.current?.focus(), 0);
   };
 
-  const filteredModels = MODELS.filter((m) =>
-    m.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // no-op: filteredModels removed (mode-based selector now)
+  void selectedModel; // used in legacy badge
 
   const showEmpty = messages.length === 0;
   const lastMessage = messages[messages.length - 1];
@@ -1462,101 +1291,30 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
                     <Paperclip size={16} />
                   </button>
 
-                  {/* Model Selector badge & Dropdown */}
-                  <div className="relative" ref={dropdownRef}>
-                    <button
-                      type="button"
-                      onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
-                      className="flex items-center gap-1.5 px-2 py-1 rounded-full hover:bg-zinc-800/80 text-[12px] font-medium text-zinc-400 hover:text-zinc-200 transition-all cursor-pointer"
-                    >
-                      <ModelLogo name={selectedModel} className="w-3 h-3 opacity-80" />
-                      <span>{selectedModel}</span>
-                    </button>
-
-                    {/* Float Dropdown Menu */}
-                    {modelDropdownOpen && (
-                      <div className="absolute bottom-full left-0 mb-3 w-[260px] bg-[#0f0f0f] border border-zinc-800 rounded-xl p-2 shadow-2xl z-50">
-                        {/* Search Input */}
-                        <div className="flex items-center bg-[#1a1a1a] rounded-lg px-2.5 py-1.5 mb-2 gap-2">
-                          <Search size={13} className="text-zinc-500 flex-shrink-0" />
-                          <input
-                            type="text"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="Search models..."
-                            className="bg-transparent text-[13px] text-zinc-200 placeholder-zinc-600 outline-none w-full"
-                          />
-                        </div>
-
-                        {/* List Options — grouped by provider */}
-                        <div className="max-h-[280px] overflow-y-auto">
-                          {(["OpenAI", "Anthropic", "Google", "xAI", "Meta", "Mistral", "DeepSeek", "Amazon", "Bytedance", "Cohere", "Alibaba"] as const).map((provider) => {
-                            const group = filteredModels.filter(m => m.category === provider);
-                            if (group.length === 0) return null;
-                            return (
-                              <div key={provider} className="mb-1">
-                                {/* Section label */}
-                                <p className="text-[11px] font-medium text-blue-400/80 px-2 py-1">
-                                  {provider}
-                                </p>
-                                <div>
-                                  {group.map((m, i) => (
-                                    <div key={m.id}>
-                                      <button
-                                        type="button"
-                                        disabled={!m.free}
-                                        onClick={() => {
-                                          if (m.free) {
-                                            setSelectedModel(m.name);
-                                            setModelDropdownOpen(false);
-                                          }
-                                        }}
-                                        className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md transition-colors text-left group ${
-                                          m.free
-                                            ? selectedModel === m.name
-                                              ? "bg-zinc-800/40 cursor-pointer hover:bg-zinc-800/60"
-                                              : "cursor-pointer hover:bg-zinc-800/50"
-                                            : "opacity-40 cursor-not-allowed"
-                                        }`}
-                                      >
-                                        {/* Colored logo on left */}
-                                        <ModelLogoColored name={m.name} className="w-[18px] h-[18px] flex-shrink-0" />
-                                        {/* Model name */}
-                                        <span className={`flex-1 text-[13px] truncate ${
-                                          m.free ? "text-zinc-200" : "text-zinc-500"
-                                        }`}>{m.name}</span>
-                                        {/* Right side: capability icons for free, lock icon for paid */}
-                                        <div className="flex items-center gap-1">
-                                          {m.free ? (
-                                            <>
-                                              {m.capabilities.includes("tool") && (
-                                                <Wrench size={11} className="text-zinc-500 opacity-60 group-hover:opacity-90 transition-opacity" />
-                                              )}
-                                              {m.capabilities.includes("vision") && (
-                                                <Eye size={11} className="text-zinc-500 opacity-60 group-hover:opacity-90 transition-opacity" />
-                                              )}
-                                              {m.capabilities.includes("reasoning") && (
-                                                <Braces size={11} className="text-zinc-500 opacity-60 group-hover:opacity-90 transition-opacity" />
-                                              )}
-                                            </>
-                                          ) : (
-                                            <Lock size={11} className="text-zinc-600" />
-                                          )}
-                                        </div>
-                                      </button>
-                                      {/* Dashed separator between items within same group */}
-                                      {i < group.length - 1 && (
-                                        <div className="border-b border-dashed border-zinc-800/60 mx-2" />
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
+                  {/* Mode Selector — Text / Image toggle */}
+                  <div className="flex items-center gap-1 bg-zinc-900/50 border border-zinc-800/60 rounded-full p-0.5">
+                    {MODES.map((mode) => (
+                      <button
+                        key={mode.id}
+                        type="button"
+                        onClick={() => setSelectedMode(mode.id)}
+                        title={mode.description}
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium transition-all ${
+                          selectedMode === mode.id
+                            ? mode.id === "image"
+                              ? "bg-violet-600 text-white shadow-sm"
+                              : "bg-emerald-600 text-white shadow-sm"
+                            : "text-zinc-500 hover:text-zinc-300"
+                        }`}
+                      >
+                        {mode.id === "text" ? (
+                          <GptTextIcon className="w-3 h-3" />
+                        ) : (
+                          <GptImageIcon className="w-3 h-3" />
+                        )}
+                        <span>{mode.label}</span>
+                      </button>
+                    ))}
                   </div>
                 </div>
 
@@ -1571,7 +1329,10 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
                         <path d="M12 8v4l3 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                       </svg>
                       {remaining} left
-                      {/* Capabilities Selector & Dropdown */}
+                    </div>
+                  )}
+
+                  {/* Capabilities Selector & Dropdown */}
                   <div className="relative" ref={capDropdownRef}>
                     <button
                       type="button"
@@ -1657,9 +1418,7 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
                         </button>
                       </div>
                     )}
-                  </div>
                 </div>
-                  )}
 
                   <button
                     type="button"
