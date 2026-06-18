@@ -1,6 +1,21 @@
+import OpenAI from "openai";
+
 export const maxDuration = 60;
 
+// xAI Grok image generation — Aurora model
+const xai = new OpenAI({
+  baseURL: "https://api.x.ai/v1",
+  apiKey: process.env.XAI_API_KEY ?? "",
+});
+
 export async function POST(req: Request) {
+  if (!process.env.XAI_API_KEY) {
+    return Response.json(
+      { error: "XAI_API_KEY is not configured. Add it to .env.local." },
+      { status: 500 }
+    );
+  }
+
   try {
     const { prompt } = await req.json();
 
@@ -12,28 +27,21 @@ export async function POST(req: Request) {
       return Response.json({ error: "Prompt too long (max 1000 characters)" }, { status: 400 });
     }
 
-    const encodedPrompt = encodeURIComponent(prompt.trim());
-    
-    // Pollinations.ai — free, no API key required
-    // Fetch as binary so we can return a base64 data URL (avoids CORS issues in browser)
-    const imageRes = await fetch(
-      `https://image.pollinations.ai/prompt/${encodedPrompt}?width=768&height=768&model=flux&nologo=true&enhance=true`,
-      { headers: { "User-Agent": "Gnim-AI/1.0" } }
-    );
+    const response = await xai.images.generate({
+      model: "grok-2-image",
+      prompt: prompt.trim(),
+      n: 1,
+      response_format: "b64_json",
+    });
 
-    if (!imageRes.ok) {
-      throw new Error(`Pollinations returned ${imageRes.status}`);
-    }
+    const b64 = response.data[0]?.b64_json;
+    if (!b64) throw new Error("No image data returned from Grok");
 
-    const contentType = imageRes.headers.get("content-type") ?? "image/jpeg";
-    const arrayBuffer = await imageRes.arrayBuffer();
-    const b64 = Buffer.from(arrayBuffer).toString("base64");
-    const url = `data:${contentType};base64,${b64}`;
-
+    const url = `data:image/jpeg;base64,${b64}`;
     return Response.json({ url });
   } catch (err: any) {
     const message = err?.message ?? "Unknown error";
-    console.error("[generate-image] Error:", message);
+    console.error("[generate-image] Grok error:", message);
     return Response.json(
       { error: `Image generation failed: ${message}` },
       { status: 500 }
