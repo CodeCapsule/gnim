@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
     const response = await fetch(parsedUrl.toString(), {
       headers: {
         "User-Agent":
-          "Mozilla/5.0 (compatible; GnimBot/1.0; +https://gnim.ai/bot)",
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
         Accept: "text/html,application/xhtml+xml,text/plain",
         "Accept-Language": "en-US,en;q=0.9",
       },

@@ -1121,7 +1121,7 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
     ta.style.height = Math.min(ta.scrollHeight, 200) + "px";
   };
 
-  const sendMessage = async (userText: string) => {
+  const sendMessage = async (userText: string, attachmentUrl?: string) => {
     if (!userText.trim() || isLoading || isLimited) return;
     increment();
 
@@ -1163,7 +1163,18 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
         body: JSON.stringify({
           modelId: selectedModelId,
           modelName: selectedModel,
-          messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
+          messages: newMessages.map((m) => {
+            if (m.id === userMsg.id && attachmentUrl) {
+              return {
+                role: m.role,
+                content: [
+                  { type: "text", text: m.content },
+                  { type: "image", image: attachmentUrl }
+                ]
+              };
+            }
+            return { role: m.role, content: m.content };
+          }),
         }),
         signal: abortRef.current.signal,
       });
@@ -1225,21 +1236,24 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
     e.preventDefault();
     if (!input.trim() && !stagedFile) return;
 
-    let finalInput = input;
+    let finalInput = input.trim();
+    let attachmentUrl: string | undefined = undefined;
+
     if (stagedFile) {
       const { file, preview } = stagedFile;
       if (file.type.startsWith("image/")) {
-        finalInput = `[Attached image: ${file.name}]\n${finalInput}`;
+        finalInput = finalInput ? `[Attached image: ${file.name}]\n\n${finalInput}` : `[Attached image: ${file.name}]`;
+        attachmentUrl = preview;
       } else {
         const truncated = preview.length > 15000 ? preview.slice(0, 15000) + "\n\n[File truncated — too large to show fully]" : preview;
-        finalInput = `[Attached file: ${file.name}]\n\nHere is its content:\n\n\`\`\`\n${truncated}\n\`\`\`\n\n${finalInput}`;
+        finalInput = finalInput ? `[Attached file: ${file.name}]\n\nHere is its content:\n\n\`\`\`\n${truncated}\n\`\`\`\n\n${finalInput}` : `[Attached file: ${file.name}]\n\nHere is its content:\n\n\`\`\`\n${truncated}\n\`\`\``;
       }
       setStagedFile(null);
     }
     
     setInput("");
-    if (finalInput.trim()) {
-      sendMessage(finalInput);
+    if (finalInput.trim() || attachmentUrl) {
+      sendMessage(finalInput, attachmentUrl);
     }
   };
 
