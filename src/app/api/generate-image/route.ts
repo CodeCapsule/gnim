@@ -1,12 +1,4 @@
-import OpenAI from "openai";
-
 export const maxDuration = 60;
-
-// Use the Vercel AI Gateway as an OpenAI-compatible proxy
-const openai = new OpenAI({
-  baseURL: "https://ai-gateway.vercel.sh/v1",
-  apiKey: process.env.AI_GATEWAY_API_KEY ?? "",
-});
 
 export async function POST(req: Request) {
   try {
@@ -20,18 +12,24 @@ export async function POST(req: Request) {
       return Response.json({ error: "Prompt too long (max 1000 characters)" }, { status: 400 });
     }
 
-    const response = await openai.images.generate({
-      model: "dall-e-2",
-      prompt: prompt.trim(),
-      n: 1,
-      size: "512x512",
-      response_format: "b64_json",
-    });
+    const encodedPrompt = encodeURIComponent(prompt.trim());
+    
+    // Pollinations.ai — free, no API key required
+    // Fetch as binary so we can return a base64 data URL (avoids CORS issues in browser)
+    const imageRes = await fetch(
+      `https://image.pollinations.ai/prompt/${encodedPrompt}?width=768&height=768&model=flux&nologo=true&enhance=true`,
+      { headers: { "User-Agent": "Gnim-AI/1.0" } }
+    );
 
-    const b64 = response.data[0]?.b64_json;
-    if (!b64) throw new Error("No image data returned");
+    if (!imageRes.ok) {
+      throw new Error(`Pollinations returned ${imageRes.status}`);
+    }
 
-    const url = `data:image/png;base64,${b64}`;
+    const contentType = imageRes.headers.get("content-type") ?? "image/jpeg";
+    const arrayBuffer = await imageRes.arrayBuffer();
+    const b64 = Buffer.from(arrayBuffer).toString("base64");
+    const url = `data:${contentType};base64,${b64}`;
+
     return Response.json({ url });
   } catch (err: any) {
     const message = err?.message ?? "Unknown error";
