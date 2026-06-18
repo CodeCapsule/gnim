@@ -168,8 +168,16 @@ export default function ChatPage() {
   return (
     <div className="flex h-screen bg-[#212121] text-white overflow-hidden">
       {/* ===== SIDEBAR ===== */}
+      {/* Mobile backdrop */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       <aside
-        className={`flex flex-col bg-[#171717] transition-all duration-300 ease-in-out flex-shrink-0 ${
+        className={`absolute md:relative z-50 h-full flex flex-col bg-[#171717] transition-all duration-300 ease-in-out flex-shrink-0 ${
           sidebarOpen ? "w-64" : "w-0 overflow-hidden"
         }`}
       >
@@ -197,7 +205,10 @@ export default function ChatPage() {
         {/* Action buttons */}
         <div className="px-3 py-1 space-y-1">
           <button
-            onClick={newChat}
+            onClick={() => {
+              newChat();
+              if (window.innerWidth < 768) setSidebarOpen(false);
+            }}
             className="w-full flex items-center gap-2.5 px-3 py-2 rounded-full text-[13px] font-semibold text-zinc-200 hover:bg-zinc-900 border border-zinc-800 transition-all duration-200"
           >
             <SquarePen size={15} className="text-zinc-200" />
@@ -232,7 +243,10 @@ export default function ChatPage() {
               {visibleConversations.map((c, index, arr) => (
                 <div key={c.id}>
                   <div
-                    onClick={() => setActiveId(c.id)}
+                    onClick={() => {
+                      setActiveId(c.id);
+                      if (window.innerWidth < 768) setSidebarOpen(false);
+                    }}
                     className={`group relative flex items-center gap-2 px-2 py-2 rounded-lg cursor-pointer text-[13px] transition-all duration-200 ${
                       c.id === activeId
                         ? "text-zinc-200"
