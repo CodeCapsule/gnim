@@ -334,21 +334,26 @@ function CodeBlock({ lang, ext, code, children }: { lang: string; ext: string; c
 function FetchUrlWidget({
   url,
   reason,
+  alreadyFetched,
+  onFetchStart,
   onContent,
 }: {
   url: string;
   reason?: string;
+  alreadyFetched?: boolean;
+  onFetchStart?: () => void;
   onContent: (text: string, url: string) => void;
 }) {
-  const [state, setState] = useState<"loading" | "done" | "error">("loading");
+  const [state, setState] = useState<"loading" | "done" | "error">(alreadyFetched ? "done" : "loading");
   const [siteTitle, setSiteTitle] = useState("");
   const [snippet, setSnippet] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
-  const sentRef = useRef(false);
+  const sentRef = useRef(alreadyFetched);
 
   useEffect(() => {
     if (sentRef.current) return;
     sentRef.current = true;
+    if (onFetchStart) onFetchStart();
 
     async function doFetch() {
       try {
@@ -436,10 +441,12 @@ function FetchUrlWidget({
 function MessageBubble({
   message,
   isStreaming,
+  fetchedUrlsRef,
   onWebContent,
 }: {
-  message: { role: string; content: string };
+  message: { role: string; content: string; id?: string };
   isStreaming?: boolean;
+  fetchedUrlsRef: React.MutableRefObject<Set<string>>;
   onWebContent?: (text: string, url: string) => void;
 }) {
   const [thoughtOpen, setThoughtOpen] = useState(false);
@@ -601,10 +608,13 @@ function MessageBubble({
           if (m) url = m[1];
         }
         if (url) {
+          const alreadyFetched = fetchedUrlsRef.current.has(url);
           return (
             <FetchUrlWidget
               url={url}
               reason={reason}
+              alreadyFetched={alreadyFetched}
+              onFetchStart={() => fetchedUrlsRef.current.add(url)}
               onContent={onWebContent ?? (() => {})}
             />
           );
@@ -817,6 +827,7 @@ type Props = {
 
 // ---------- ChatWindow ----------
 export default function ChatWindow({ conversation, onUpdate }: Props) {
+  const fetchedUrlsRef = useRef<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -1276,12 +1287,11 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
           ) : (
             <div className="space-y-4">
               {messages.map((m, i) => (
-                <MessageBubble
-                  key={m.id}
-                  message={m}
-                  isStreaming={
-                    isLoading && i === messages.length - 1 && m.role === "assistant"
-                  }
+                <MessageBubble 
+                  key={m.id} 
+                  message={m} 
+                  fetchedUrlsRef={fetchedUrlsRef}
+                  isStreaming={isLoading && i === messages.length - 1 && m.role === "assistant"}
                   onWebContent={handleWebContent}
                 />
               ))}
