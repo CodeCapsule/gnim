@@ -1151,8 +1151,8 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
     const injected = [
       ...currentMessages,
       {
-        role: "user" as const,
-        content: `[WEB PAGE CONTENT FETCHED FROM ${url}]\n\n${text}${text.length >= 19000 ? "\n\n[Content was truncated]" : ""}\n\n[END OF WEB PAGE CONTENT]\n\nPlease analyze and respond to the page content as requested above.`,
+        role: "system" as const,
+        content: `[SYSTEM LOG - TOOL EXECUTION COMPLETE]\nThe web page content for ${url} has been successfully fetched. Here is the raw content:\n\n${text}${text.length >= 19000 ? "\n\n[Content was truncated]" : ""}\n\nCRITICAL INSTRUCTION: DO NOT output another \`fetch-url\` block for this URL. You already have the data. Proceed directly to analyzing this content and answering the user's request.`,
       },
     ];
 
