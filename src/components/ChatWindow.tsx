@@ -1140,10 +1140,78 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
   const lastMessage = messages[messages.length - 1];
   const showThinking = isLoading && lastMessage?.role === "user";
 
-  // Called when FetchUrlWidget finishes loading page content
-  const handleWebContent = (text: string, url: string) => {
-    // Send the fetched content as a user message so the AI can analyze it
-    sendMessage(`[The webpage at ${url} has been fetched. Here is its content:]\n\n${text}\n\nPlease analyze and summarize the above webpage content as requested.`);
+  // Injects content silently into the conversation as a "tool" message,
+  // then re-sends to the AI without creating a visible user message bubble.
+  const handleWebContent = async (text: string, url: string) => {
+    const selectedModelId = selectedMode === "image" ? "openai/dall-e-2" : "openai/gpt-5.5";
+
+    // Build the current messages + the injected web content as a user message
+    // (invisible to the UI — never added to `messages` state directly)
+    const currentMessages = messages.map((m) => ({ role: m.role, content: m.content }));
+    const injected = [
+      ...currentMessages,
+      {
+        role: "user" as const,
+        content: `[WEB PAGE CONTENT FETCHED FROM ${url}]\n\n${text}${text.length >= 19000 ? "\n\n[Content was truncated]" : ""}\n\n[END OF WEB PAGE CONTENT]\n\nPlease analyze and respond to the page content as requested above.`,
+      },
+    ];
+
+    // Create a placeholder assistant message
+    const assistantId = generateId();
+    const assistantPlaceholder: StoredMessage = { id: assistantId, role: "assistant", content: "" };
+    setMessages((prev) => [...prev, assistantPlaceholder]);
+    setIsLoading(true);
+    abortRef.current = new AbortController();
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          modelId: selectedModelId,
+          modelName: selectedModel,
+          messages: injected,
+        }),
+        signal: abortRef.current.signal,
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        throw new Error(errData.error || `Request failed with status ${res.status}`);
+      }
+
+      const reader = res.body!.getReader();
+      const decoder = new TextDecoder();
+      let accumulated = "";
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        accumulated += decoder.decode(value, { stream: true });
+        setMessages((prev) =>
+          prev.map((m) => (m.id === assistantId ? { ...m, content: accumulated } : m))
+        );
+      }
+
+      // Save final state to conversation history (no new user bubble)
+      const title =
+        conversation?.title && conversation.title !== "New Chat"
+          ? conversation.title
+          : messages[0]?.content?.slice(0, 50).trim() ?? "New Chat";
+      const finalMessages: StoredMessage[] = [
+        ...messages,
+        { id: assistantId, role: "assistant", content: accumulated },
+      ];
+      onUpdate({ id: convoId, title, createdAt: conversation?.createdAt ?? Date.now(), messages: finalMessages });
+    } catch (err: any) {
+      if (err.name !== "AbortError") {
+        setMessages((prev) => prev.filter((m) => m.id !== assistantId));
+        setError(err.message || "Failed to process web content.");
+      }
+    } finally {
+      setIsLoading(false);
+      abortRef.current = null;
+    }
   };
 
   // Helper: format file size
