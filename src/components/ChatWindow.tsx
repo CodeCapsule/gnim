@@ -491,7 +491,7 @@ function FetchUrlWidget({
   );
 }
 
-function MessageBubble({
+const MessageBubble = React.memo(function MessageBubble({
   message,
   isStreaming,
   fetchedUrlsRef,
@@ -802,7 +802,15 @@ function MessageBubble({
       )}
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  // Only re-render if the message content, role, or streaming status changes.
+  // This prevents all messages from re-rendering on every keystroke in the input box.
+  return (
+    prevProps.message.content === nextProps.message.content &&
+    prevProps.message.role === nextProps.message.role &&
+    prevProps.isStreaming === nextProps.isStreaming
+  );
+});
 
 // ---------- Thinking / Searching Indicator ----------
 function ThinkingIndicator({ text = "Thinking" }: { text?: string }) {
