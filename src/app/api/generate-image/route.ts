@@ -2,12 +2,6 @@ import OpenAI from "openai";
 
 export const maxDuration = 60;
 
-// xAI Grok image generation — Aurora model
-const xai = new OpenAI({
-  baseURL: "https://api.x.ai/v1",
-  apiKey: process.env.XAI_API_KEY ?? "",
-});
-
 export async function POST(req: Request) {
   if (!process.env.XAI_API_KEY) {
     return Response.json(
@@ -15,6 +9,12 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
+
+  // Instantiate inside the handler so it runs at request time, not build time
+  const xai = new OpenAI({
+    baseURL: "https://api.x.ai/v1",
+    apiKey: process.env.XAI_API_KEY,
+  });
 
   try {
     const { prompt } = await req.json();
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
       response_format: "b64_json",
     });
 
-    const b64 = response.data[0]?.b64_json;
+    const b64 = response.data?.[0]?.b64_json;
     if (!b64) throw new Error("No image data returned from Grok");
 
     const url = `data:image/jpeg;base64,${b64}`;

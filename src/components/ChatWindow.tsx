@@ -1227,10 +1227,10 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
           )}
 
           <form onSubmit={handleFormSubmit}>
-            <div className={`relative flex flex-col bg-zinc-900/50 border rounded-3xl p-4 transition-all duration-200 shadow-lg ${
+            <div className={`relative flex flex-col bg-[#212121] border border-[#333333] rounded-[26px] p-3 transition-all duration-200 shadow-md ${
               isLimited
-                ? "border-zinc-700/50 opacity-60 pointer-events-none"
-                : "border-zinc-800 focus-within:border-zinc-700"
+                ? "opacity-60 pointer-events-none"
+                : "focus-within:bg-[#2a2a2a] focus-within:border-[#444]"
             }`}>
 
               {/* Hidden file input */}
@@ -1276,7 +1276,7 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
                 placeholder={isLimited ? "Message limit reached — check back later..." : "Ask anything..."}
                 disabled={isLimited}
                 rows={1}
-                className="w-full bg-transparent resize-none outline-none text-sm text-white placeholder-zinc-600 leading-relaxed min-h-[80px] max-h-[80px]"
+                className="w-full bg-transparent resize-none outline-none text-[15px] text-white placeholder-[#777] leading-relaxed min-h-[52px] max-h-[200px] px-2 py-2"
               />
 
               {/* Action bar on the bottom */}
@@ -1345,23 +1345,22 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
 
                     {/* ChatGPT-style Capabilities Menu */}
                     {capabilitiesDropdownOpen && (
-                      <div className="absolute bottom-full left-0 mb-3 w-[700px] bg-[#000000] border border-zinc-800 rounded-2xl p-0 shadow-[0_0_40px_rgba(0,0,0,0.5)] z-50 overflow-hidden text-[13px]">
+                      <div className="absolute bottom-full right-0 mb-3 w-[700px] bg-[#000000] border border-zinc-800 rounded-2xl p-0 shadow-[0_0_40px_rgba(0,0,0,0.5)] z-50 overflow-hidden text-[13px]">
                         {/* Table Header */}
-                        <div className="grid grid-cols-[1fr_2fr_2fr_1fr] gap-4 px-5 py-3 border-b border-zinc-800 text-zinc-300 font-semibold text-[13px]">
+                        <div className="grid grid-cols-[1fr_2.5fr_2.5fr] gap-6 px-6 py-4 border-b border-zinc-800/80 text-white font-bold text-[13px]">
                           <div>Capability</div>
                           <div>What it does</div>
                           <div>Best for</div>
-                          <div>Speed</div>
                         </div>
 
                         {/* Row 1: Thinking */}
                         <button 
                           type="button"
                           onClick={() => setThinkingEnabled(!thinkingEnabled)}
-                          className="w-full text-left grid grid-cols-[1fr_2fr_2fr_1fr] gap-4 px-5 py-4 border-b border-zinc-800/50 hover:bg-[#1a1a1a] transition-colors items-start cursor-pointer group"
+                          className="w-full text-left grid grid-cols-[1fr_2.5fr_2.5fr] gap-6 px-6 py-5 border-b border-zinc-800/40 hover:bg-[#111111] transition-colors items-start cursor-pointer group"
                         >
-                          <div className={`font-semibold flex items-center gap-2 ${thinkingEnabled ? "text-[#10b981]" : "text-white group-hover:text-zinc-200"}`}>
-                            <Brain size={14} className={thinkingEnabled ? "text-[#10b981]" : "text-zinc-400"} />
+                          <div className={`font-semibold flex items-center gap-2 ${thinkingEnabled ? "text-white" : "text-white group-hover:text-zinc-200"}`}>
+                            <Brain size={14} className={thinkingEnabled ? "text-[#fff]" : "text-zinc-400"} />
                             Thinking
                           </div>
                           <div className="text-zinc-400 pr-4 leading-relaxed">
@@ -1370,16 +1369,13 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
                           <div className="text-zinc-400 pr-4 leading-relaxed">
                             Math, coding, strategy, business plans, debugging, analyzing documents, difficult questions
                           </div>
-                          <div className="text-zinc-400">
-                            Medium to slower
-                          </div>
                         </button>
 
                         {/* Row 2: Web Search */}
                         <button 
                           type="button"
                           onClick={() => setWebSearchEnabled(!webSearchEnabled)}
-                          className="w-full text-left grid grid-cols-[1fr_2fr_2fr_1fr] gap-4 px-5 py-4 border-b border-zinc-800/50 hover:bg-[#1a1a1a] transition-colors items-start cursor-pointer group"
+                          className="w-full text-left grid grid-cols-[1fr_2.5fr_2.5fr] gap-6 px-6 py-5 border-b border-zinc-800/40 hover:bg-[#111111] transition-colors items-start cursor-pointer group"
                         >
                           <div className={`font-semibold flex items-center gap-2 ${webSearchEnabled ? "text-[#3b82f6]" : "text-white group-hover:text-zinc-200"}`}>
                             <Globe size={14} className={webSearchEnabled ? "text-[#3b82f6]" : "text-blue-400"} />
@@ -1391,19 +1387,16 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
                           <div className="text-zinc-400 pr-4 leading-relaxed">
                             Latest news, current events, prices, product availability, laws/policies, recent updates
                           </div>
-                          <div className="text-zinc-400">
-                            Fast to medium
-                          </div>
                         </button>
 
                         {/* Row 3: Deep Research */}
                         <button 
                           type="button"
                           onClick={() => setDeepResearchEnabled(!deepResearchEnabled)}
-                          className="w-full text-left grid grid-cols-[1fr_2fr_2fr_1fr] gap-4 px-5 py-4 hover:bg-[#1a1a1a] transition-colors items-start cursor-pointer group"
+                          className="w-full text-left grid grid-cols-[1fr_2.5fr_2.5fr] gap-6 px-6 py-5 hover:bg-[#111111] transition-colors items-start cursor-pointer group"
                         >
                           <div className={`font-semibold flex items-center gap-2 ${deepResearchEnabled ? "text-[#a855f7]" : "text-white group-hover:text-zinc-200"}`}>
-                            <FlaskConical size={14} className={deepResearchEnabled ? "text-[#a855f7]" : "text-purple-400"} />
+                            <FlaskConical size={14} className={deepResearchEnabled ? "text-[#a855f7]" : "text-[#a855f7]"} />
                             Deep Research
                           </div>
                           <div className="text-zinc-400 pr-4 leading-relaxed">
@@ -1411,9 +1404,6 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
                           </div>
                           <div className="text-zinc-400 pr-4 leading-relaxed">
                             Thesis writing, market analysis, scientific topics, technology research, long reports, decision-making
-                          </div>
-                          <div className="text-zinc-400">
-                            Slowest (but most comprehensive)
                           </div>
                         </button>
                       </div>
