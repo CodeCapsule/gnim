@@ -634,110 +634,106 @@ function MessageBubble({
   };
 
   return (
-    <div className="group flex gap-4 items-start py-4">
-      {/* Avatar */}
-      <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-[#121212] border border-zinc-800/80 flex items-center justify-center mt-1 text-zinc-300">
-        <Sparkles size={16} />
+    <div className="group py-5 px-1">
+      {/* Agent name header */}
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-5 h-5 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center">
+          <div className="w-2 h-2 rounded-full bg-emerald-400" />
+        </div>
+        <span className="text-[13px] font-semibold text-zinc-200 tracking-wide">Gnim AI Assistant</span>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 min-w-0 max-w-[85%]">
-        
-        {/* Thought block */}
-        {thought && (
-          <div className="mb-3">
-             <div 
-               onClick={() => setThoughtOpen(!thoughtOpen)}
-               className="flex items-center gap-2 text-zinc-500 cursor-pointer hover:text-zinc-300 transition-colors w-fit select-none"
-             >
-                <span className="text-sm font-medium">Thought process</span>
-                <ChevronDown size={14} className={`transition-transform duration-200 ${thoughtOpen ? "rotate-180" : ""}`} />
-             </div>
-             {thoughtOpen && (
-               <div className="mt-2 text-sm leading-relaxed text-zinc-400 border-l-2 border-zinc-800 pl-4 py-1 whitespace-pre-wrap font-mono text-xs overflow-x-auto">
-                 {thought}
-                 {isStreaming && !answer && (
-                   <span className="inline-block w-2 h-2 rounded-full bg-zinc-500 ml-1.5 animate-pulse align-middle" />
-                 )}
-               </div>
-             )}
+      {/* Reasoning / Thought block */}
+      {thought && (
+        <div className="mb-4">
+          <div
+            onClick={() => setThoughtOpen(!thoughtOpen)}
+            className="flex items-center gap-1.5 text-zinc-500 cursor-pointer hover:text-zinc-300 transition-colors w-fit select-none group/toggle"
+          >
+            <ChevronDown size={13} className={`transition-transform duration-200 ${thoughtOpen ? "rotate-180" : ""}`} />
+            <span className="text-[13px] font-medium">Reasoning</span>
           </div>
-        )}
-
-
-        {/* Bubble — show answer, or fallback when done streaming with no separate answer */}
-        {(answer || !isStreaming) && (
-          <div className="text-[15px] leading-relaxed text-zinc-200">
-            {/* Generated image display */}
-            {answer && answer.startsWith("[GENERATED_IMAGE]:") ? (
-              <div>
-                <img
-                  src={answer.split("\n")[0].replace("[GENERATED_IMAGE]:", "").trim()}
-                  alt="AI generated image"
-                  className="rounded-xl max-w-full max-h-[480px] object-contain border border-zinc-800 shadow-xl"
-                  onError={(e) => { (e.target as HTMLImageElement).alt = "Image failed to load"; }}
-                />
-                {answer.includes("\n\n") && (
-                  <p className="mt-2 text-sm text-zinc-400 italic">
-                    {answer.split("\n\n").slice(1).join("\n\n").replace(/\*/g, "")}
-                  </p>
+          {thoughtOpen && (
+            <div className="mt-2 ml-1 pl-3 border-l-2 border-zinc-700/60">
+              <p className="text-[13px] leading-relaxed text-zinc-400 whitespace-pre-wrap font-medium italic">
+                {thought}
+                {isStreaming && !answer && (
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-zinc-500 ml-1.5 animate-pulse align-middle" />
                 )}
-              </div>
-            ) : (
-              <div className="prose prose-zinc prose-p:leading-relaxed prose-pre:p-0 prose-invert max-w-none prose-headings:font-semibold prose-h2:text-xl prose-h3:text-lg prose-ul:pl-4 prose-ol:pl-4">
-                {answer ? (
-                    <ReactMarkdown 
-                      remarkPlugins={[remarkGfm]}
-                      components={markdownComponents}
-                    >
-                      {answer}
-                    </ReactMarkdown>
-                ) : (
-                  !isStreaming && thought && (
-                    // Model put everything inside <think>; surface the thought as the answer
-                    <ReactMarkdown 
-                      remarkPlugins={[remarkGfm]}
-                      components={markdownComponents}
-                    >
-                      {thought}
-                    </ReactMarkdown>
-                  )
-                )}
-                {isStreaming && answer && (
-                  <span className="inline-block w-2.5 h-2.5 rounded-full bg-zinc-400 ml-1.5 animate-pulse align-middle" />
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-
-        {/* Still streaming indicator when neither thought nor answer exist yet */}
-        {isStreaming && !thought && !answer && (
-           <span className="inline-block w-2.5 h-2.5 rounded-full bg-zinc-400 animate-pulse mt-2" />
-        )}
-
-        {/* Actions */}
-        {!isStreaming && (
-          <div className="flex items-center gap-3 mt-3.5 text-zinc-500">
-            <button className="p-1 hover:text-zinc-300 hover:bg-zinc-800/50 transition-colors rounded-md">
-              <Copy size={16} />
-            </button>
-            <button className="p-1 hover:text-zinc-300 hover:bg-zinc-800/50 transition-colors rounded-md">
-              <ThumbsUp size={16} />
-            </button>
-            <button className="p-1 hover:text-zinc-300 hover:bg-zinc-800/50 transition-colors rounded-md">
-              <ThumbsDown size={16} />
-            </button>
-            
-            {/* Token Usage Badge */}
-            <div className="ml-auto flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-zinc-500 bg-zinc-800/30 border border-zinc-800/50 rounded-md select-none">
-              <Zap size={12} className="text-zinc-400" />
-              <span>~{Math.ceil(message.content.length / 4)} tokens</span>
+              </p>
             </div>
+          )}
+        </div>
+      )}
+
+      {/* Main answer */}
+      {(answer || !isStreaming) && (
+        <div className="text-[15px] leading-relaxed text-zinc-200">
+          {answer && answer.startsWith("[GENERATED_IMAGE]:") ? (
+            <div>
+              <img
+                src={answer.split("\n")[0].replace("[GENERATED_IMAGE]:", "").trim()}
+                alt="AI generated image"
+                className="rounded-xl max-w-full max-h-[480px] object-contain border border-zinc-800 shadow-xl"
+                onError={(e) => { (e.target as HTMLImageElement).alt = "Image failed to load"; }}
+              />
+              {answer.includes("\n\n") && (
+                <p className="mt-2 text-sm text-zinc-400 italic">
+                  {answer.split("\n\n").slice(1).join("\n\n").replace(/\*/g, "")}
+                </p>
+              )}
+            </div>
+          ) : (
+            <div>
+              {answer ? (
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={markdownComponents}
+                >
+                  {answer}
+                </ReactMarkdown>
+              ) : (
+                !isStreaming && thought && (
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={markdownComponents}
+                  >
+                    {thought}
+                  </ReactMarkdown>
+                )
+              )}
+              {isStreaming && answer && (
+                <span className="inline-block w-2 h-2 rounded-full bg-zinc-400 ml-1 animate-pulse align-middle" />
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Still streaming indicator when neither thought nor answer exist yet */}
+      {isStreaming && !thought && !answer && (
+        <span className="inline-block w-2.5 h-2.5 rounded-full bg-zinc-400 animate-pulse mt-2" />
+      )}
+
+      {/* Actions */}
+      {!isStreaming && (
+        <div className="flex items-center gap-2 mt-4 text-zinc-500 border-t border-zinc-800/50 pt-3">
+          <button className="p-1.5 hover:text-zinc-300 hover:bg-zinc-800/50 transition-colors rounded-md" title="Copy">
+            <Copy size={14} />
+          </button>
+          <button className="p-1.5 hover:text-zinc-300 hover:bg-zinc-800/50 transition-colors rounded-md" title="Good response">
+            <ThumbsUp size={14} />
+          </button>
+          <button className="p-1.5 hover:text-zinc-300 hover:bg-zinc-800/50 transition-colors rounded-md" title="Bad response">
+            <ThumbsDown size={14} />
+          </button>
+          {/* Token Usage Badge */}
+          <div className="ml-auto flex items-center gap-1.5 px-2 py-1 text-[11px] font-medium text-zinc-600 select-none">
+            <Zap size={11} className="text-zinc-600" />
+            <span>~{Math.ceil(message.content.length / 4)} tokens</span>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
