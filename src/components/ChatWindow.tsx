@@ -627,14 +627,7 @@ const MessageBubble = React.memo(function MessageBubble({
         : typeof className === "string"
           ? className.includes("language-fetch-url")
           : false;
-      let isImplicitFetchUrl = false;
-      if (!isFetchUrl && !isWeather && codeChild?.children?.[0]?.value) {
-        const text = String(codeChild.children[0].value).trim();
-        if (text.startsWith("{") && text.includes('"url"') && text.includes('"reason"')) {
-           isImplicitFetchUrl = true;
-        }
-      }
-      if (isWeather || isFetchUrl || isImplicitFetchUrl) return <>{children}</>;
+      if (isWeather || isFetchUrl) return <>{children}</>;
       return <pre {...props}>{children}</pre>;
     },
     code({ node, inline, className, children, ...props }: any) {
@@ -659,7 +652,8 @@ const MessageBubble = React.memo(function MessageBubble({
       const isExplicitFetchUrl = !inline && match && match[1] === "fetch-url";
       const isImplicitFetchUrl = !inline && contentStr.trim().startsWith("{") && contentStr.includes('"url"') && contentStr.includes('"reason"');
 
-      if (isExplicitFetchUrl || isImplicitFetchUrl) {
+      // Only explicit fetch-url blocks are rendered as widgets (no implicit JSON matching)
+      if (isExplicitFetchUrl) {
         let url = ""; let reason = "";
         try {
           const parsed = JSON.parse(contentStr);
@@ -680,7 +674,7 @@ const MessageBubble = React.memo(function MessageBubble({
             />
           );
         }
-        if (isExplicitFetchUrl) return null;
+        return null;
       }
       // ---- Regular code block with copy + download ----
       if (!inline && match) {
