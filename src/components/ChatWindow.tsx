@@ -1426,7 +1426,6 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
               {/* Action bar on the bottom */}
               <div className="flex items-center justify-between mt-2">
                 <div className="flex items-center gap-2">
-                  {/* Attachment Clip */}
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
@@ -1434,32 +1433,6 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
                   >
                     <Paperclip size={16} />
                   </button>
-
-                  {/* Mode Selector — Text / Image toggle */}
-                  <div className="flex items-center gap-1 bg-zinc-900/50 border border-zinc-800/60 rounded-full p-0.5">
-                    {MODES.map((mode) => (
-                      <button
-                        key={mode.id}
-                        type="button"
-                        onClick={() => setSelectedMode(mode.id)}
-                        title={mode.description}
-                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium transition-all ${
-                          selectedMode === mode.id
-                            ? mode.id === "image"
-                              ? "bg-violet-600 text-white shadow-sm"
-                              : "bg-emerald-600 text-white shadow-sm"
-                            : "text-zinc-500 hover:text-zinc-300"
-                        }`}
-                      >
-                        {mode.id === "text" ? (
-                          <GptTextIcon className="w-3 h-3" />
-                        ) : (
-                          <GptImageIcon className="w-3 h-3" />
-                        )}
-                        <span>{mode.label}</span>
-                      </button>
-                    ))}
-                  </div>
                 </div>
 
                 {/* Send/Stop Button + remaining counter */}
@@ -1467,7 +1440,7 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
 
                   {/* Remaining messages pill — show when <= 5 left and not limited */}
                   {!isLimited && remaining <= 5 && (
-                    <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/25 text-orange-400 text-[11px] font-medium">
+                    <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/25 text-orange-400 text-[11px] font-medium mr-2">
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
                         <path d="M12 8v4l3 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -1475,84 +1448,6 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
                       {remaining} left
                     </div>
                   )}
-
-                  {/* Capabilities Selector & Dropdown */}
-                  <div className="relative" ref={capDropdownRef}>
-                    <button
-                      type="button"
-                      onClick={() => setCapabilitiesDropdownOpen(!capabilitiesDropdownOpen)}
-                      className="flex items-center gap-1.5 px-2 py-1 rounded-full hover:bg-zinc-800/80 text-[12px] font-medium text-zinc-400 hover:text-zinc-200 transition-all cursor-pointer"
-                    >
-                      <Plus size={14} className="opacity-80" />
-                      <span>Tools</span>
-                    </button>
-
-                    {/* ChatGPT-style Capabilities Menu */}
-                    {capabilitiesDropdownOpen && (
-                      <div className="absolute bottom-full right-0 mb-3 w-[700px] bg-[#000000] border border-zinc-800 rounded-2xl p-0 shadow-[0_0_40px_rgba(0,0,0,0.5)] z-50 overflow-hidden text-[13px]">
-                        {/* Table Header */}
-                        <div className="grid grid-cols-[1fr_2.5fr_2.5fr] gap-6 px-6 py-4 border-b border-zinc-800/80 text-white font-bold text-[13px]">
-                          <div>Capability</div>
-                          <div>What it does</div>
-                          <div>Best for</div>
-                        </div>
-
-                        {/* Row 1: Thinking */}
-                        <button 
-                          type="button"
-                          onClick={() => setThinkingEnabled(!thinkingEnabled)}
-                          className="w-full text-left grid grid-cols-[1fr_2.5fr_2.5fr] gap-6 px-6 py-5 border-b border-zinc-800/40 hover:bg-[#111111] transition-colors items-start cursor-pointer group"
-                        >
-                          <div className={`font-semibold flex items-center gap-2 ${thinkingEnabled ? "text-white" : "text-white group-hover:text-zinc-200"}`}>
-                            <Brain size={14} className={thinkingEnabled ? "text-[#fff]" : "text-zinc-400"} />
-                            Thinking
-                          </div>
-                          <div className="text-zinc-400 pr-4 leading-relaxed">
-                            Uses more internal reasoning time to analyze, plan, compare, and solve complex problems using its existing knowledge
-                          </div>
-                          <div className="text-zinc-400 pr-4 leading-relaxed">
-                            Math, coding, strategy, business plans, debugging, analyzing documents, difficult questions
-                          </div>
-                        </button>
-
-                        {/* Row 2: Web Search */}
-                        <button 
-                          type="button"
-                          onClick={() => setWebSearchEnabled(!webSearchEnabled)}
-                          className="w-full text-left grid grid-cols-[1fr_2.5fr_2.5fr] gap-6 px-6 py-5 border-b border-zinc-800/40 hover:bg-[#111111] transition-colors items-start cursor-pointer group"
-                        >
-                          <div className={`font-semibold flex items-center gap-2 ${webSearchEnabled ? "text-[#3b82f6]" : "text-white group-hover:text-zinc-200"}`}>
-                            <Globe size={14} className={webSearchEnabled ? "text-[#3b82f6]" : "text-blue-400"} />
-                            Web Search
-                          </div>
-                          <div className="text-zinc-400 pr-4 leading-relaxed">
-                            Searches the live internet for up-to-date information and summarizes relevant sources
-                          </div>
-                          <div className="text-zinc-400 pr-4 leading-relaxed">
-                            Latest news, current events, prices, product availability, laws/policies, recent updates
-                          </div>
-                        </button>
-
-                        {/* Row 3: Deep Research */}
-                        <button 
-                          type="button"
-                          onClick={() => setDeepResearchEnabled(!deepResearchEnabled)}
-                          className="w-full text-left grid grid-cols-[1fr_2.5fr_2.5fr] gap-6 px-6 py-5 hover:bg-[#111111] transition-colors items-start cursor-pointer group"
-                        >
-                          <div className={`font-semibold flex items-center gap-2 ${deepResearchEnabled ? "text-[#a855f7]" : "text-white group-hover:text-zinc-200"}`}>
-                            <FlaskConical size={14} className={deepResearchEnabled ? "text-[#a855f7]" : "text-[#a855f7]"} />
-                            Deep Research
-                          </div>
-                          <div className="text-zinc-400 pr-4 leading-relaxed">
-                            Performs a much more extensive investigation, checking many sources, comparing information, and producing a detailed report
-                          </div>
-                          <div className="text-zinc-400 pr-4 leading-relaxed">
-                            Thesis writing, market analysis, scientific topics, technology research, long reports, decision-making
-                          </div>
-                        </button>
-                      </div>
-                    )}
-                </div>
 
                   <button
                     type="button"
