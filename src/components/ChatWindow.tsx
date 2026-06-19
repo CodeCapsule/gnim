@@ -4,6 +4,8 @@ import { useRef, useEffect, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import SyntaxHighlighter from "react-syntax-highlighter";
+import { atomOneDark } from "react-syntax-highlighter/dist/esm/styles/hljs";
 import {
   Send,
   Square,
@@ -264,7 +266,7 @@ function WeatherWidget({ location }: { location: string }) {
   );
 }
 
-// ---------- CodeBlock with Copy + Download ----------
+// ---------- CodeBlock with Syntax Highlighting + Copy + Download ----------
 function CodeBlock({ lang, ext, code, children }: { lang: string; ext: string; code: string; children: React.ReactNode }) {
   const [copied, setCopied] = useState(false);
 
@@ -287,46 +289,96 @@ function CodeBlock({ lang, ext, code, children }: { lang: string; ext: string; c
     URL.revokeObjectURL(url);
   };
 
+  // Custom VS Code / Tokyo Night inspired theme override
+  const tokyoNight = {
+    ...atomOneDark,
+    'hljs': { ...atomOneDark['hljs'], background: '#0d1117', color: '#c9d1d9' },
+    'hljs-keyword': { color: '#ff7b72' },
+    'hljs-built_in': { color: '#ffa657' },
+    'hljs-type': { color: '#79c0ff' },
+    'hljs-literal': { color: '#79c0ff' },
+    'hljs-number': { color: '#79c0ff' },
+    'hljs-string': { color: '#a5d6ff' },
+    'hljs-meta': { color: '#a5d6ff' },
+    'hljs-regexp': { color: '#a5d6ff' },
+    'hljs-symbol': { color: '#a5d6ff' },
+    'hljs-title': { color: '#d2a8ff', fontWeight: 'bold' },
+    'hljs-function': { color: '#d2a8ff' },
+    'hljs-attr': { color: '#79c0ff' },
+    'hljs-attribute': { color: '#79c0ff' },
+    'hljs-variable': { color: '#c9d1d9' },
+    'hljs-params': { color: '#c9d1d9' },
+    'hljs-comment': { color: '#6e7681', fontStyle: 'italic' },
+    'hljs-doctag': { color: '#ff7b72' },
+    'hljs-tag': { color: '#7ee787' },
+    'hljs-name': { color: '#7ee787' },
+    'hljs-selector-tag': { color: '#7ee787' },
+    'hljs-selector-class': { color: '#ffa657' },
+    'hljs-selector-id': { color: '#ffa657' },
+    'hljs-operator': { color: '#ff7b72' },
+    'hljs-punctuation': { color: '#c9d1d9' },
+    'hljs-property': { color: '#79c0ff' },
+    'hljs-class': { color: '#f0db4f' },
+    'hljs-template-variable': { color: '#a5d6ff' },
+  };
+
   return (
-    <div className="my-4 rounded-[20px] overflow-hidden bg-[#18181a] border border-zinc-800/40 p-4 shadow-sm">
+    <div className="my-5 rounded-[16px] overflow-hidden border border-[#30363d] shadow-xl" style={{ background: '#0d1117' }}>
       {/* Header bar */}
-      <div className="flex items-center justify-between mb-3 pl-1 pr-1">
-        <div className="flex items-center gap-2 text-zinc-300">
-          <FileCode size={16} strokeWidth={1.5} />
-          <span className="text-[13px] font-bold uppercase tracking-wider">{lang}</span>
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#21262d]" style={{ background: '#161b22' }}>
+        <div className="flex items-center gap-2">
+          {/* Colored dots like macOS/VS Code */}
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded-full bg-[#ff5f57]" />
+            <div className="w-3 h-3 rounded-full bg-[#febc2e]" />
+            <div className="w-3 h-3 rounded-full bg-[#28c840]" />
+          </div>
+          <span className="text-[12px] font-mono font-semibold text-[#8b949e] ml-2 uppercase tracking-widest">{lang}</span>
         </div>
         
-        {/* Actions (pill shaped container) */}
-        <div className="flex items-center gap-0.5 bg-[#262628] rounded-full p-1 text-zinc-400">
-          <button
-            title="View Code"
-            className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-[#3f3f42] hover:text-zinc-200 transition-colors"
-          >
-            <Code size={15} strokeWidth={2} />
-          </button>
+        {/* Actions */}
+        <div className="flex items-center gap-1">
           <button
             onClick={handleDownload}
-            title={`Run / Download .${ext}`}
-            className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-[#3f3f42] hover:text-zinc-200 transition-colors"
+            title={`Download .${ext}`}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] text-[#8b949e] hover:text-[#c9d1d9] hover:bg-[#21262d] transition-colors font-mono"
           >
-            <Play size={15} strokeWidth={2} className="ml-0.5" />
+            <Download size={13} strokeWidth={2} />
+            <span>Download</span>
           </button>
           <button
             onClick={handleCopy}
             title="Copy code"
-            className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-[#3f3f42] hover:text-zinc-200 transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] text-[#8b949e] hover:text-[#c9d1d9] hover:bg-[#21262d] transition-colors font-mono"
           >
-            {copied ? <Check size={14} className="text-green-400" strokeWidth={2.5} /> : <Copy size={15} strokeWidth={2} />}
+            {copied ? (
+              <><Check size={13} className="text-green-400" strokeWidth={2.5} /><span className="text-green-400">Copied!</span></>
+            ) : (
+              <><Copy size={13} strokeWidth={2} /><span>Copy</span></>
+            )}
           </button>
         </div>
       </div>
       
-      {/* Code body */}
-      <div className="overflow-x-auto px-1 pb-1">
-        <div className="text-[14px] leading-[1.6] text-zinc-300 font-mono">
-          {children}
-        </div>
-      </div>
+      {/* Syntax Highlighted Code */}
+      <SyntaxHighlighter
+        language={lang}
+        style={tokyoNight}
+        showLineNumbers
+        lineNumberStyle={{ color: '#484f58', fontSize: '12px', minWidth: '2.5em', paddingRight: '1em', userSelect: 'none' }}
+        customStyle={{
+          margin: 0,
+          padding: '16px 20px',
+          fontSize: '13.5px',
+          lineHeight: '1.7',
+          fontFamily: '"JetBrains Mono", "Fira Code", "Cascadia Code", Consolas, monospace',
+          background: '#0d1117',
+          overflowX: 'auto',
+        }}
+        codeTagProps={{ style: { fontFamily: 'inherit' } }}
+      >
+        {code}
+      </SyntaxHighlighter>
     </div>
   );
 }
