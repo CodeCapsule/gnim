@@ -480,6 +480,27 @@ function MessageBubble({
   answer = answer.trim();
 
   const markdownComponents = {
+    h1({ children, ...props }: any) {
+      return <h1 className="text-2xl font-bold mt-8 mb-4 text-zinc-100" {...props}>{children}</h1>;
+    },
+    h2({ children, ...props }: any) {
+      return <h2 className="text-xl font-semibold mt-8 mb-3 text-zinc-100" {...props}>{children}</h2>;
+    },
+    h3({ children, ...props }: any) {
+      return <h3 className="text-lg font-semibold mt-6 mb-3 text-zinc-200" {...props}>{children}</h3>;
+    },
+    h4({ children, ...props }: any) {
+      return <h4 className="text-base font-semibold mt-4 mb-2 text-zinc-200" {...props}>{children}</h4>;
+    },
+    p({ children, ...props }: any) {
+      return <p className="mb-4 whitespace-pre-line leading-relaxed" {...props}>{children}</p>;
+    },
+    ul({ children, ...props }: any) {
+      return <ul className="list-disc pl-5 mb-4 space-y-1 marker:text-zinc-500" {...props}>{children}</ul>;
+    },
+    ol({ children, ...props }: any) {
+      return <ol className="list-decimal pl-5 mb-4 space-y-1 marker:text-zinc-500" {...props}>{children}</ol>;
+    },
     table({ children, ...props }: any) {
       return (
         <div className="overflow-x-auto my-6 rounded-xl border border-zinc-800/60 bg-zinc-900/30">
