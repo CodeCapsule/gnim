@@ -538,6 +538,15 @@ export async function POST(req: Request) {
       "When the user asks to create/generate a file:",
       "1. Wrap content in a fenced code block with the correct language tag.",
       "2. The interface auto-shows a Download button — NEVER say you can't share files.",
+      "",
+      "---",
+      "",
+      "## Code Formatting (STRICT RULE)",
+      "ALWAYS wrap every code example inside a Markdown fenced code block with the correct language identifier.",
+      "Supported identifiers include: html, javascript, typescript, python, css, json, sql, bash, shell, jsx, tsx, java, c, cpp, rust, go, ruby, php, swift, kotlin, yaml, xml, markdown.",
+      "NEVER output raw code outside of a fenced code block.",
+      "Even a single line of code must be in a fenced code block.",
+      "Example: ```python\\nprint('hello')\\n```",
     ].join("\n");
 
     const result = await streamText({
