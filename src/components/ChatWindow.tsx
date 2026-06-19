@@ -480,6 +480,30 @@ function MessageBubble({
   answer = answer.trim();
 
   const markdownComponents = {
+    table({ children, ...props }: any) {
+      return (
+        <div className="overflow-x-auto my-6 rounded-xl border border-zinc-800/60 bg-zinc-900/30">
+          <table className="w-full text-sm text-left border-collapse" {...props}>
+            {children}
+          </table>
+        </div>
+      );
+    },
+    thead({ children, ...props }: any) {
+      return <thead className="text-xs uppercase bg-zinc-800/50 text-zinc-400 border-b border-zinc-800/60" {...props}>{children}</thead>;
+    },
+    tbody({ children, ...props }: any) {
+      return <tbody className="divide-y divide-zinc-800/50" {...props}>{children}</tbody>;
+    },
+    tr({ children, ...props }: any) {
+      return <tr className="hover:bg-zinc-800/20 transition-colors" {...props}>{children}</tr>;
+    },
+    th({ children, ...props }: any) {
+      return <th className="px-4 py-3 font-medium tracking-wider" {...props}>{children}</th>;
+    },
+    td({ children, ...props }: any) {
+      return <td className="px-4 py-3 text-zinc-300 align-top" {...props}>{children}</td>;
+    },
     a({ node, children, href, ...props }: any) {
       const text = String(children);
       if (text.startsWith("badge:")) {
