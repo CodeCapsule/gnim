@@ -43,6 +43,7 @@ import {
   FileCode,
   Code,
   Play,
+  Bot,
 } from "lucide-react";
 import type { Conversation, StoredMessage } from "@/app/page";
 import { generateId } from "@/app/page";
@@ -450,7 +451,15 @@ function MessageBubble({
   onWebContent?: (text: string, url: string) => void;
 }) {
   const [thoughtOpen, setThoughtOpen] = useState(false);
+  const [timestamp, setTimestamp] = useState("");
   const isUser = message.role === "user";
+
+  useEffect(() => {
+    const d = new Date();
+    const formatted = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric', hour12: true }).format(d);
+    // Transform "Jun 19, 2026, 5:47 PM" -> "Jun 19, 2026 • 5:47 PM"
+    setTimestamp(formatted.replace(/,\s*(\d{1,2}:\d{2}\s*[AP]M)/, ' • $1'));
+  }, []);
 
   if (isUser) {
     return (
@@ -646,26 +655,42 @@ function MessageBubble({
   return (
     <div className="group py-5 px-1">
       {/* Agent name header */}
-      <div className="flex items-center gap-2 mb-3">
-        <div className="w-5 h-5 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center">
-          <div className="w-2 h-2 rounded-full bg-emerald-400" />
+      <div className="flex items-center justify-between mb-4 w-full pl-1">
+        <div className="flex items-center gap-2.5">
+          <div 
+            className="w-[22px] h-[22px] bg-zinc-200 text-zinc-900 flex items-center justify-center shadow-sm"
+            style={{ clipPath: "polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)" }}
+          >
+            <Bot size={13} fill="currentColor" strokeWidth={2} />
+          </div>
+          <span className="text-[14.5px] font-semibold text-zinc-200 tracking-wide">Gnim AI Assistant</span>
+          <span className="text-[13px] text-zinc-500 ml-1 tracking-wide">{timestamp}</span>
         </div>
-        <span className="text-[13px] font-semibold text-zinc-200 tracking-wide">Gnim AI Assistant</span>
+        
+        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button 
+            onClick={() => navigator.clipboard.writeText(answer)}
+            className="text-zinc-500 hover:text-zinc-300 transition-colors p-1.5 hover:bg-zinc-800/60 rounded-md" 
+            title="Copy Message"
+          >
+            <Copy size={15} />
+          </button>
+        </div>
       </div>
 
       {/* Reasoning / Thought block */}
       {thought && (
-        <div className="mb-4">
+        <div className="mb-4 pl-1">
           <div
             onClick={() => setThoughtOpen(!thoughtOpen)}
-            className="flex items-center gap-1.5 text-zinc-500 cursor-pointer hover:text-zinc-300 transition-colors w-fit select-none group/toggle"
+            className="flex items-center gap-2.5 text-zinc-400 cursor-pointer hover:text-zinc-200 transition-colors w-fit select-none group/toggle"
           >
-            <ChevronDown size={13} className={`transition-transform duration-200 ${thoughtOpen ? "rotate-180" : ""}`} />
-            <span className="text-[13px] font-medium">Reasoning</span>
+            <div className="w-[11px] h-[11px] rounded-full bg-[#E91E63]" />
+            <span className="text-[14.5px] font-medium tracking-wide">Thinking...</span>
           </div>
           {thoughtOpen && (
-            <div className="mt-2 ml-1 pl-3 border-l-2 border-zinc-700/60">
-              <p className="text-[13px] leading-relaxed text-zinc-400 whitespace-pre-wrap font-medium italic">
+            <div className="mt-3 ml-[5px] pl-4 border-l-2 border-zinc-800/80">
+              <p className="text-[14px] leading-relaxed text-zinc-400 whitespace-pre-wrap font-medium italic">
                 {thought}
                 {isStreaming && !answer && (
                   <span className="inline-block w-1.5 h-1.5 rounded-full bg-zinc-500 ml-1.5 animate-pulse align-middle" />
