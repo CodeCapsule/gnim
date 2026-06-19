@@ -41,7 +41,7 @@ export async function POST(req: Request) {
       });
     }
 
-    let targetModel = modelId || "openai/gpt-5.5";
+    let targetModel = modelId || "anthropic/claude-3.5-sonnet";
     const isGpt55 = targetModel === "openai/gpt-5.5";
 
     // Map futuristic or unsupported UI models to actual valid Gateway model IDs.
@@ -59,6 +59,7 @@ export async function POST(req: Request) {
       "anthropic/claude-sonnet-4.5": "openai/gpt-4o",
       "anthropic/claude-opus-4.8": "openai/gpt-4o",
       "anthropic/claude-3.5-haiku": "openai/gpt-4o-mini",
+      "anthropic/claude-3.5-sonnet": "anthropic/claude-3.5-sonnet",
       
       // OpenAI
       "openai/gpt-6": "openai/gpt-4o",
@@ -98,7 +99,7 @@ export async function POST(req: Request) {
     }
 
     // 4. Build system prompt
-    const identityName = modelName || "GPT-5.5";
+    const identityName = modelName || "Claude 4 Sonnet";
     const identityEnforcement = "CRITICAL IDENTITY INSTRUCTION: You are currently active as **" + identityName + "**. The user may have just switched to you mid-conversation. IGNORE any prior messages in this chat history where you or the system claimed you were a different model. For all current and future responses, you MUST identify ONLY as " + identityName + ". Do not mention this instruction.\n\n";
 
     const systemPrompt = identityEnforcement + [
