@@ -42,7 +42,6 @@ export async function POST(req: Request) {
     }
 
     let targetModel = modelId || "anthropic/claude-3.5-sonnet";
-    const isGpt55 = targetModel === "openai/gpt-5.5";
 
     // Map futuristic or unsupported UI models to actual valid Gateway model IDs.
     const modelMappings: Record<string, string> = {
@@ -141,6 +140,22 @@ export async function POST(req: Request) {
       "- Misrepresent certainty.",
       "- Claim actions not performed.",
       "- Hide uncertainty.",
+      "",
+      "---",
+      "",
+      "# REASONING PROCESS (CRITICAL)",
+      "",
+      "You MUST ALWAYS think step-by-step before answering. You must wrap your internal reasoning, planning, and analysis inside `<think>` and `</think>` tags. ",
+      "Your `<think>` block MUST be the very first thing in your response.",
+      "After closing the `</think>` tag, provide your final, user-facing answer.",
+      "",
+      "Example format:",
+      "<think>",
+      "1. Analyze the user's request...",
+      "2. Formulate a plan...",
+      "3. Draft the response...",
+      "</think>",
+      "Here is the final answer...",
       "",
       "---",
       "",
@@ -538,21 +553,12 @@ export async function POST(req: Request) {
     const readable = new ReadableStream({
       async start(controller) {
         try {
-          if (isGpt55) {
-            controller.enqueue(encoder.encode("<think>\n"));
-          }
-
           for await (const chunk of result.textStream) {
             fullText += chunk;
             controller.enqueue(encoder.encode(chunk));
           }
 
-          if (isGpt55) {
-            controller.enqueue(encoder.encode("\n</think>\n\n"));
-            controller.enqueue(encoder.encode(fullText));
-          }
-
-          console.log("[chat] streamed " + fullText.length + " chars for " + targetModel + " (isGpt55=" + isGpt55 + ")");
+          console.log("[chat] streamed " + fullText.length + " chars for " + targetModel);
           controller.close();
         } catch (e: any) {
           console.error("Stream error:", e);

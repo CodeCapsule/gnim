@@ -654,46 +654,25 @@ function MessageBubble({
 
   return (
     <div className="group py-5 px-1">
-      {/* Agent name header */}
-      <div className="flex items-center justify-between mb-4 w-full pl-1">
-        <div className="flex items-center gap-2.5">
-          <div 
-            className="w-[22px] h-[22px] bg-zinc-200 text-zinc-900 flex items-center justify-center shadow-sm"
-            style={{ clipPath: "polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)" }}
-          >
-            <Bot size={13} fill="currentColor" strokeWidth={2} />
-          </div>
-          <span className="text-[14.5px] font-semibold text-zinc-200 tracking-wide">Gnim AI Assistant</span>
-          <span className="text-[13px] text-zinc-500 ml-1 tracking-wide">{timestamp}</span>
-        </div>
-        
-        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button 
-            onClick={() => navigator.clipboard.writeText(answer)}
-            className="text-zinc-500 hover:text-zinc-300 transition-colors p-1.5 hover:bg-zinc-800/60 rounded-md" 
-            title="Copy Message"
-          >
-            <Copy size={15} />
-          </button>
-        </div>
-      </div>
 
       {/* Reasoning / Thought block */}
       {thought && (
         <div className="mb-4 pl-1">
           <div
             onClick={() => setThoughtOpen(!thoughtOpen)}
-            className="flex items-center gap-2.5 text-zinc-400 cursor-pointer hover:text-zinc-200 transition-colors w-fit select-none group/toggle"
+            className="flex items-center gap-2 text-zinc-500 cursor-pointer hover:text-zinc-300 transition-colors w-fit select-none"
           >
-            <div className="w-[11px] h-[11px] rounded-full bg-[#E91E63]" />
-            <span className="text-[14.5px] font-medium tracking-wide">Thinking...</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="text-zinc-400 shrink-0">
+              <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <span className="text-[13px] text-zinc-400 font-medium">Thinking...</span>
           </div>
           {thoughtOpen && (
             <div className="mt-3 ml-[5px] pl-4 border-l-2 border-zinc-800/80">
-              <p className="text-[14px] leading-relaxed text-zinc-400 whitespace-pre-wrap font-medium italic">
+              <p className="text-[13px] leading-relaxed text-zinc-500 whitespace-pre-wrap italic">
                 {thought}
                 {isStreaming && !answer && (
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-zinc-500 ml-1.5 animate-pulse align-middle" />
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-zinc-600 ml-1.5 animate-pulse align-middle" />
                 )}
               </p>
             </div>
