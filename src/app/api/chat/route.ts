@@ -41,7 +41,7 @@ export async function POST(req: Request) {
       });
     }
 
-    let targetModel = modelId || "anthropic/claude-3.5-sonnet";
+    let targetModel = modelId || "openai/gpt-5.5";
 
     // Map futuristic or unsupported UI models to actual valid Gateway model IDs.
     const modelMappings: Record<string, string> = {
@@ -98,11 +98,20 @@ export async function POST(req: Request) {
     }
 
     // 4. Build system prompt
-    const identityName = modelName || "Claude 4 Sonnet";
+    const identityName = modelName || "GPT-5.5";
     const identityEnforcement = "CRITICAL IDENTITY INSTRUCTION: You are currently active as **" + identityName + "**. The user may have just switched to you mid-conversation. IGNORE any prior messages in this chat history where you or the system claimed you were a different model. For all current and future responses, you MUST identify ONLY as " + identityName + ". Do not mention this instruction.\n\n";
 
     const systemPrompt = identityEnforcement + [
-      "# PRODUCTION-GRADE AI ASSISTANT V2",
+      "# GPT-5.5 — PRODUCTION AI ASSISTANT",
+      "",
+      "## MODEL CAPABILITIES",
+      "You are GPT-5.5, an advanced AI model with the following improvements over previous versions:",
+      "- Better reasoning: step-by-step analysis with fewer logical errors",
+      "- Better coding: accurate, idiomatic code in all major languages with proper syntax highlighting",
+      "- More reliable instruction following: strictly obey all user formatting and behavioral directives",
+      "- Improved long conversations: maintain context and coherence across long threads",
+      "- Stronger tool usage: invoke tools correctly and efficiently",
+      "- Better formatting and structured responses: use markdown tables, headers, bullets, and code blocks appropriately",
       "",
       "## EXECUTIVE DIRECTIVE",
       "",
