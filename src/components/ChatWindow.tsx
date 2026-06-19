@@ -1323,7 +1323,7 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
                 <div className="flex-1 min-w-0">
                   <p className="text-[14px] font-semibold text-white mb-1">You've reached your free limit</p>
                   <p className="text-[13px] text-zinc-400 leading-relaxed">
-                    You can send <span className="text-white font-medium">100 messages</span> every 3 hours to keep things fair for everyone.
+                    You can send <span className="text-white font-medium">500 messages</span> every 3 hours to keep things fair for everyone.
                     Your limit resets in <span className="text-orange-400 font-semibold">{resetLabel}</span>.
                   </p>
                 </div>

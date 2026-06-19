@@ -3,7 +3,7 @@ import path from "path";
 
 const STORE_PATH = path.join(process.cwd(), ".rate-limits.json");
 export const RATE_LIMIT_WINDOW_MS = 3 * 60 * 60 * 1000; // 3 hours
-export const MAX_MESSAGES = 100;
+export const MAX_MESSAGES = 500;
 
 export type RateLimitRecord = {
   count: number;
