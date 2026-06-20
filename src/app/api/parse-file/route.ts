@@ -14,9 +14,9 @@ export async function POST(req: Request) {
     let text = "";
 
     if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
-      // Dynamically require pdf-parse@1.1.1 (simple function export)
+      // Import directly from lib to bypass the test-data loader in pdf-parse's index.js
       // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const pdfParse = require("pdf-parse");
+      const pdfParse = require("pdf-parse/lib/pdf-parse");
       const data = await pdfParse(buffer);
       text = data.text;
     } else if (
