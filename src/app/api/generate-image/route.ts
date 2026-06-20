@@ -1,24 +1,38 @@
-import OpenAI from "openai";
-
 export const maxDuration = 60;
 
-// Use Vercel AI Gateway's OpenAI-compatible endpoint
-// This routes all image requests through the gateway (one key, unified billing, observability)
-const gateway = new OpenAI({
-  baseURL: "https://ai-gateway.vercel.sh/v1",
-  apiKey: process.env.AI_GATEWAY_API_KEY ?? "",
-});
+/**
+ * Image Generation Route
+ *
+ * Uses Pollinations.ai — a free, no-auth-required image generation API.
+ * No extra API keys needed. Works out of the box.
+ *
+ * If you want to switch to a paid provider in the future, simply replace
+ * the `generateWithPollinations` function below.
+ */
 
-export async function POST(req: Request) {
-  if (!process.env.AI_GATEWAY_API_KEY) {
-    return Response.json(
-      { error: "AI_GATEWAY_API_KEY is not configured. Add it to .env.local." },
-      { status: 500 }
-    );
+async function generateWithPollinations(prompt: string): Promise<string> {
+  const encodedPrompt = encodeURIComponent(prompt);
+  // Use a unique seed from timestamp to avoid cached results
+  const seed = Date.now();
+  const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&seed=${seed}&nologo=true&model=flux`;
+
+  const res = await fetch(url, {
+    headers: { Accept: "image/*" },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Pollinations returned ${res.status}: ${res.statusText}`);
   }
 
+  const contentType = res.headers.get("content-type") || "image/jpeg";
+  const arrayBuffer = await res.arrayBuffer();
+  const base64 = Buffer.from(arrayBuffer).toString("base64");
+  return `data:${contentType};base64,${base64}`;
+}
+
+export async function POST(req: Request) {
   try {
-    const { prompt, model: modelOverride } = await req.json();
+    const { prompt } = await req.json();
 
     if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
       return Response.json({ error: "Missing or invalid prompt" }, { status: 400 });
@@ -28,25 +42,11 @@ export async function POST(req: Request) {
       return Response.json({ error: "Prompt too long (max 1000 characters)" }, { status: 400 });
     }
 
-    // Use dall-e-3 via the gateway's OpenAI-compatible API
-    const model = modelOverride ?? "dall-e-3";
-
-    const response = await gateway.images.generate({
-      model,
-      prompt: prompt.trim(),
-      n: 1,
-      size: "1024x1024",
-      response_format: "b64_json",
-    });
-
-    const b64 = response.data?.[0]?.b64_json;
-    if (!b64) throw new Error("No image data returned from gateway");
-
-    const url = `data:image/png;base64,${b64}`;
-    return Response.json({ url, model });
+    const url = await generateWithPollinations(prompt.trim());
+    return Response.json({ url, provider: "pollinations" });
   } catch (err: any) {
     const message = err?.message ?? "Unknown error";
-    console.error("[generate-image] Gateway error:", message);
+    console.error("[generate-image] Error:", message);
     return Response.json(
       { error: `Image generation failed: ${message}` },
       { status: 500 }
