@@ -66,7 +66,7 @@ function createBlankConversation(): Conversation {
 export default function ChatPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string>("");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isPrivate, setIsPrivate] = useState(true);
@@ -89,9 +89,9 @@ export default function ChatPage() {
       setActiveId(blank.id);
     }
 
-    // Default sidebar to closed on mobile
-    if (window.innerWidth < 768) {
-      setSidebarOpen(false);
+    // Default sidebar to open on desktop
+    if (window.innerWidth >= 768) {
+      setSidebarOpen(true);
     }
 
     setMounted(true);
