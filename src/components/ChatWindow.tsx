@@ -524,11 +524,8 @@ const MessageBubble = React.memo(function MessageBubble({
 
     if (fileMatch) {
       attachedFileName = fileMatch[1];
-      // Strip everything up to and including the closing ``` block - show only the user's text
-      const afterBlock = message.content.indexOf("```\n\n");
-      displayText = afterBlock !== -1
-        ? message.content.slice(afterBlock + 5).trim()
-        : message.content.replace(/^\[Attached file: .+?\]\n\nHere is its content:\n\n```[\s\S]*?```\n\n?/, "").trim();
+      // Strip the injected raw file content block (which is wrapped in backticks) and show only the user's actual prompt
+      displayText = message.content.replace(/^\[Attached file: .+?\][\s\S]*?```[\s\S]*?```\n*/, "").trim();
     } else if (imageMatch) {
       attachedFileName = imageMatch[1];
       attachedFileIsImage = true;
