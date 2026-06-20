@@ -88,6 +88,12 @@ export default function ChatPage() {
       setConversations([blank]);
       setActiveId(blank.id);
     }
+
+    // Default sidebar to closed on mobile
+    if (window.innerWidth < 768) {
+      setSidebarOpen(false);
+    }
+
     setMounted(true);
   }, []);
 
