@@ -26,8 +26,8 @@ export async function POST(req: Request) {
       return Response.json({ error: "Prompt too long (max 1000 characters)" }, { status: 400 });
     }
 
-    // Default to bfl/flux-2-pro as requested
-    const model = modelOverride ?? "bfl/flux-2-pro";
+    // Default to openai/gpt-image-2 as requested
+    const model = modelOverride ?? "openai/gpt-image-2";
 
     const response = await client.images.generate({
       model,
