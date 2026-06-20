@@ -972,7 +972,15 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
         method: "POST",
         body: formData,
       });
-      const data = await res.json();
+      
+      const resText = await res.text();
+      let data;
+      try {
+        data = JSON.parse(resText);
+      } catch (e) {
+        throw new Error(`Server error: ${res.status} ${res.statusText}`);
+      }
+      
       if (!res.ok) throw new Error(data.error || "Failed to parse file");
       
       setStagedFile({ file, preview: data.text });
