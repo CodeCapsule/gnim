@@ -1,4 +1,17 @@
 import { NextResponse } from "next/server";
+// Polyfill for pdf.js running in Node environment
+if (typeof global !== "undefined") {
+  if (!global.DOMMatrix) {
+    (global as any).DOMMatrix = class DOMMatrix {};
+  }
+  if (!global.ImageData) {
+    (global as any).ImageData = class ImageData {};
+  }
+  if (!global.Path2D) {
+    (global as any).Path2D = class Path2D {};
+  }
+}
+
 const pdf = require("pdf-parse");
 import mammoth from "mammoth";
 
