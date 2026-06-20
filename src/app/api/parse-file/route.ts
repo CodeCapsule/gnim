@@ -1,18 +1,4 @@
 import { NextResponse } from "next/server";
-// Polyfill for pdf.js running in Node environment
-if (typeof global !== "undefined") {
-  if (!global.DOMMatrix) {
-    (global as any).DOMMatrix = class DOMMatrix {};
-  }
-  if (!global.ImageData) {
-    (global as any).ImageData = class ImageData {};
-  }
-  if (!global.Path2D) {
-    (global as any).Path2D = class Path2D {};
-  }
-}
-
-const pdf = require("pdf-parse");
 import mammoth from "mammoth";
 
 export async function POST(req: Request) {
@@ -28,17 +14,19 @@ export async function POST(req: Request) {
     let text = "";
 
     if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
-      const pdfParser = pdf.default || pdf;
-      const data = await pdfParser(buffer);
+      // Dynamically require pdf-parse@1.1.1 (simple function export)
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const pdfParse = require("pdf-parse");
+      const data = await pdfParse(buffer);
       text = data.text;
     } else if (
-      file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || 
+      file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
       file.name.toLowerCase().endsWith(".docx")
     ) {
       const result = await mammoth.extractRawText({ buffer });
       text = result.value;
     } else {
-      // Fallback: read as text (for raw code, csv, md, etc.)
+      // Fallback: read as UTF-8 text (csv, md, json, code files, logs, etc.)
       text = await file.text();
     }
 
