@@ -26,18 +26,11 @@ export async function POST(req: Request) {
       return Response.json({ error: "Prompt too long (max 1000 characters)" }, { status: 400 });
     }
 
-    const result = await client.images.generate({
-      model: "openai/gpt-image-2",
-      prompt: prompt.trim(),
-      response_format: "url",
-    });
-
-    const imageData = result.data?.[0];
-    if (!imageData) throw new Error("No image data returned");
-
-    const url = imageData.url
-      ? imageData.url
-      : `data:image/png;base64,${imageData.b64_json}`;
+    // Use Pollinations.ai for instant image generation, bypassing slow Vercel API Gateway timeouts
+    const encodedPrompt = encodeURIComponent(prompt.trim());
+    const width = 1024;
+    const height = 576; // 16:9 aspect ratio as requested by user often
+    const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&nologo=true`;
 
     return Response.json({ url });
   } catch (err: any) {
