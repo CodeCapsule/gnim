@@ -383,47 +383,32 @@ function CodeBlock({ lang, ext, code, children }: { lang: string; ext: string; c
   );
 }
 
-// Global cache to avoid re-generating identical images across remounts
+// Global cache to avoid duplicate requests across remounts
 const globalImageCache = new Map<string, string>();
 
+// Build a direct Pollinations.ai URL — loads in-browser, zero server cost
+function buildPollinationsUrl(prompt: string): string {
+  const seed = Math.floor(Math.random() * 999999);
+  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=1024&seed=${seed}&nologo=true&model=flux&enhance=true`;
+}
+
 // ---------- Generate Image Widget ----------
+// Loads images directly from Pollinations CDN in the browser.
+// No server round-trip, no API key, no token cost — just a URL.
 function GenerateImageWidget({
   prompt,
 }: {
   prompt: string;
 }) {
-  const [state, setState] = useState<"loading" | "done" | "error">(globalImageCache.has(prompt) ? "done" : "loading");
-  const [imageUrl, setImageUrl] = useState<string>(globalImageCache.get(prompt) || "");
-  const [errorMsg, setErrorMsg] = useState("");
-  const sentRef = useRef(globalImageCache.has(prompt));
-
-  useEffect(() => {
-    if (sentRef.current) return;
-    sentRef.current = true;
-
-    async function doGenerate() {
-      try {
-        const res = await fetch(`/api/generate-image`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt }),
-        });
-        const data = await res.json();
-        if (!res.ok || data.error) {
-          setErrorMsg(data.error ?? "Failed to generate image");
-          setState("error");
-          return;
-        }
-        globalImageCache.set(prompt, data.url);
-        setImageUrl(data.url);
-        setState("done");
-      } catch (e: any) {
-        setErrorMsg(e.message ?? "Network error");
-        setState("error");
-      }
-    }
-    doGenerate();
-  }, [prompt]);
+  const [state, setState] = useState<"loading" | "done" | "error">(
+    globalImageCache.has(prompt) ? "done" : "loading"
+  );
+  const [imageUrl] = useState<string>(() => {
+    if (globalImageCache.has(prompt)) return globalImageCache.get(prompt)!;
+    const url = buildPollinationsUrl(prompt);
+    globalImageCache.set(prompt, url);
+    return url;
+  });
 
   if (state === "loading") {
     return (
@@ -433,6 +418,14 @@ function GenerateImageWidget({
           <div className="text-[13px] font-medium text-zinc-300">Generating image...</div>
           <div className="text-[11px] text-zinc-500 mt-2 text-center max-w-[80%] truncate">"{prompt}"</div>
         </div>
+        {/* Preload the image — when it loads, flip state to done */}
+        <img
+          src={imageUrl}
+          alt=""
+          style={{ display: "none" }}
+          onLoad={() => setState("done")}
+          onError={() => setState("error")}
+        />
       </div>
     );
   }
@@ -443,7 +436,7 @@ function GenerateImageWidget({
         <div className="text-red-400 mt-0.5">⚠️</div>
         <div className="flex flex-col min-w-0">
           <div className="text-[13px] font-semibold text-red-400">Failed to generate image</div>
-          <div className="text-[12px] text-red-400/80 mt-0.5">{errorMsg}</div>
+          <div className="text-[12px] text-red-400/80 mt-0.5">Image service unavailable. Please try again.</div>
         </div>
       </div>
     );
@@ -456,8 +449,12 @@ function GenerateImageWidget({
         alt={prompt}
         title={prompt}
         className="rounded-xl max-w-full max-h-[480px] object-contain border border-zinc-800 shadow-xl"
-        onError={(e) => { (e.target as HTMLImageElement).alt = "Image failed to load"; }}
+        onError={(e) => {
+          setState("error");
+          (e.target as HTMLImageElement).style.display = "none";
+        }}
       />
+      <div className="text-[11px] text-zinc-600 mt-1.5 italic truncate">"{prompt}"</div>
     </div>
   );
 }
