@@ -28,9 +28,10 @@ export async function POST(req: Request) {
 
     // dall-e-2 is significantly faster (~5-10s) than gpt-image-2 (~30-60s)
     const result = await client.images.generate({
-      model: "openai/dall-e-2",
+      model: "openai/gpt-image-2",
       prompt: prompt.trim(),
-      size: "512x512",  // faster than 1024x1024
+      // Remove size param if it causes issues, but typically 512x512 makes generation slightly faster
+      size: "512x512",
       response_format: "url",
     });
 
