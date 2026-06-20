@@ -410,7 +410,14 @@ function GenerateImageWidget({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ prompt }),
         });
-        const data = await res.json();
+        const contentType = res.headers.get("content-type");
+        let data;
+        if (contentType && contentType.includes("application/json")) {
+          data = await res.json();
+        } else {
+          const text = await res.text();
+          throw new Error(`Server error: ${text.slice(0, 100)}`);
+        }
         if (!res.ok || data.error) {
           setErrorMsg(data.error ?? "Failed to generate image");
           setState("error");
@@ -1262,16 +1269,7 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
     setInput("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
 
-    const lowerUserText = userText.toLowerCase();
-    const isImageRequest = 
-      lowerUserText.includes("create image") ||
-      lowerUserText.includes("generate image") ||
-      lowerUserText.includes("storyboard") ||
-      lowerUserText.includes("draw") ||
-      lowerUserText.includes("illustrate");
-
-    const effectiveMode = isImageRequest ? "image" : selectedMode;
-    const selectedModelId = effectiveMode === "image" ? "openai/dall-e-2" : "openai/gpt-5.5";
+    const selectedModelId = selectedMode === "image" ? "openai/dall-e-2" : "openai/gpt-5.5";
 
     // Optimistic title save
     const title =
@@ -1286,7 +1284,7 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
     setMessages([...newMessages, assistantPlaceholder]);
 
     // ---- IMAGE GENERATION MODE ----
-    if (effectiveMode === "image") {
+    if (selectedMode === "image") {
       setImageGenerating(true);
       setIsLoading(true);
       try {
@@ -1295,7 +1293,16 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ prompt: userText.trim() }),
         });
-        const data = await res.json();
+        
+        const contentType = res.headers.get("content-type");
+        let data;
+        if (contentType && contentType.includes("application/json")) {
+          data = await res.json();
+        } else {
+          const text = await res.text();
+          throw new Error(`Server returned invalid response: ${text.slice(0, 100)}...`);
+        }
+        
         if (!res.ok || data.error) throw new Error(data.error || "Image generation failed");
         const imageMsg = `[GENERATED_IMAGE]:${data.url}\n\n*Generated image for: "${userText.trim()}"*`;
         const finalMessages: StoredMessage[] = [
