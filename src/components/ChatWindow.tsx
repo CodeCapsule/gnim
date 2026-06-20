@@ -401,6 +401,7 @@ function GenerateImageWidget({
   prompt: string;
 }) {
   const [retryCount, setRetryCount] = useState(0);
+  const [autoRetryCount, setAutoRetryCount] = useState(0);
 
   const [state, setState] = useState<"loading" | "done" | "error">(
     globalImageCache.has(prompt) ? "done" : "loading"
@@ -420,13 +421,26 @@ function GenerateImageWidget({
     setImageUrl(newUrl);
   };
 
+  const handleImageError = () => {
+    if (autoRetryCount < 3) {
+      setAutoRetryCount(c => c + 1);
+      setTimeout(() => {
+        const newUrl = buildPollinationsUrl(prompt);
+        globalImageCache.set(prompt, newUrl);
+        setImageUrl(newUrl);
+      }, 1000); // 1s backoff
+    } else {
+      setState("error");
+    }
+  };
+
   if (state === "loading") {
     return (
       <div className="flex flex-col gap-3 mt-2 mb-4">
         <div className="rounded-xl p-6 w-full max-w-[480px] bg-zinc-900/60 border border-zinc-800/70 shadow-sm flex flex-col items-center justify-center min-h-[240px]">
           <div className="w-10 h-10 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mb-4" />
           <div className="text-[13px] font-medium text-zinc-300">
-            {retryCount > 0 ? `Retrying... (${retryCount})` : "Generating image..."}
+            {retryCount > 0 || autoRetryCount > 0 ? `Retrying... (${retryCount || autoRetryCount})` : "Generating image..."}
           </div>
           <div className="text-[11px] text-zinc-500 mt-2 text-center max-w-[80%] truncate">"{prompt}"</div>
         </div>
@@ -437,7 +451,7 @@ function GenerateImageWidget({
           alt=""
           style={{ display: "none" }}
           onLoad={() => setState("done")}
-          onError={() => setState("error")}
+          onError={handleImageError}
         />
       </div>
     );
