@@ -181,7 +181,7 @@ export default function ChatPage() {
   if (!mounted || !activeConversation) return null;
 
   return (
-    <div className="flex h-screen bg-[#212121] text-white overflow-hidden">
+    <div className="flex h-[100dvh] bg-[#212121] text-white overflow-hidden">
       {/* ===== AUTH MODAL ===== */}
       {!isAuthenticated && (
         <div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4 backdrop-blur-sm">
