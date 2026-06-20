@@ -1,6 +1,20 @@
+import OpenAI from "openai";
+
 export const maxDuration = 60;
 
+const client = new OpenAI({
+  apiKey: process.env.AI_GATEWAY_API_KEY,
+  baseURL: "https://ai-gateway.vercel.sh/v1",
+});
+
 export async function POST(req: Request) {
+  if (!process.env.AI_GATEWAY_API_KEY) {
+    return Response.json(
+      { error: "AI_GATEWAY_API_KEY is not configured." },
+      { status: 500 }
+    );
+  }
+
   try {
     const { prompt } = await req.json();
 
@@ -12,29 +26,25 @@ export async function POST(req: Request) {
       return Response.json({ error: "Prompt too long (max 1000 characters)" }, { status: 400 });
     }
 
-    const trimmed = prompt.trim();
+    const result = await client.images.generate({
+      model: "openai/gpt-image-2",
+      prompt: prompt.trim(),
+    });
 
-    // Build direct Pollinations CDN URL — no API key needed, zero server cost
-    const seed = Math.floor(Math.random() * 99999);
-    const encodedPrompt = encodeURIComponent(trimmed);
-    const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&seed=${seed}&nologo=true&model=flux&enhance=true`;
+    const imageData = result.data?.[0];
+    if (!imageData) throw new Error("No image data returned");
 
-    // Verify the URL is reachable (HEAD request) so the client gets a definitive error immediately instead of a broken img tag
-    const check = await fetch(url, { method: "HEAD", signal: AbortSignal.timeout(25000) });
-
-    if (!check.ok) {
-      return Response.json(
-        { error: "Image service unavailable or overloaded." },
-        { status: 502 }
-      );
-    }
+    // gpt-image-2 returns b64_json by default
+    const url = imageData.url
+      ? imageData.url
+      : `data:image/png;base64,${imageData.b64_json}`;
 
     return Response.json({ url });
   } catch (err: any) {
     const message = err?.message ?? "Unknown error";
     console.error("[generate-image] Error:", message);
     return Response.json(
-      { error: "Image service unavailable or overloaded." },
+      { error: `Image generation failed: ${message}` },
       { status: 500 }
     );
   }
