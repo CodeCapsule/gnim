@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import pdf from "pdf-parse/lib/pdf-parse.js";
+const pdf = require("pdf-parse");
 import mammoth from "mammoth";
 
 export async function POST(req: Request) {
