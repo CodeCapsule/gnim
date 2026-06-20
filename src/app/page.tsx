@@ -185,8 +185,8 @@ export default function ChatPage() {
       <aside
         className={`absolute md:relative z-50 h-full flex flex-col bg-[#171717] transition-all duration-300 ease-in-out flex-shrink-0 border-r border-zinc-800/50 md:border-none ${
           sidebarOpen 
-            ? "translate-x-0 w-[280px] md:w-64 shadow-2xl md:shadow-none" 
-            : "-translate-x-full w-[280px] md:w-0 md:translate-x-0 overflow-hidden"
+            ? "translate-x-0 w-[260px] xs:w-[280px] md:w-64 shadow-2xl md:shadow-none" 
+            : "-translate-x-full w-[260px] xs:w-[280px] md:w-0 md:translate-x-0 overflow-hidden"
         }`}
         style={{ left: 0, top: 0 }}
       >
@@ -331,21 +331,21 @@ export default function ChatPage() {
       {/* ===== MAIN CONTENT ===== */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#212121]">
         {/* Top bar */}
-        <header className="flex items-center justify-between px-5 py-4 border-b border-zinc-900/40 flex-shrink-0">
-          <div className="flex items-center gap-3">
+        <header className="flex items-center justify-between px-3 sm:px-5 py-3 sm:py-4 border-b border-zinc-900/40 flex-shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3">
             {!sidebarOpen && (
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => setSidebarOpen(true)}
                   className="p-1 rounded-md hover:bg-zinc-900 transition-colors text-zinc-400 hover:text-white"
                 >
-                  <PanelLeft size={22} />
+                  <PanelLeft size={20} />
                 </button>
                 <button
                   onClick={newChat}
                   className="p-1 rounded-md hover:bg-zinc-900 transition-colors text-zinc-400 hover:text-white"
                 >
-                  <SquarePen size={22} />
+                  <SquarePen size={20} />
                 </button>
               </div>
             )}

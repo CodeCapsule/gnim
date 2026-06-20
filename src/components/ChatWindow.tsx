@@ -650,7 +650,7 @@ const MessageBubble = React.memo(function MessageBubble({
 
     return (
       <div className="flex justify-end py-2">
-        <div className="flex flex-col items-end gap-2 max-w-[75%]">
+        <div className="flex flex-col items-end gap-2 max-w-[85%] md:max-w-[75%]">
           {attachedFileName && (
             <div className={`flex items-center gap-3 px-4 py-2.5 rounded-2xl border ${fileStyle!.bg} ${fileStyle!.border} w-full`}>
               <div className={`flex-shrink-0 w-9 h-9 rounded-xl ${fileStyle!.bg} ${fileStyle!.border} border flex items-center justify-center text-lg`}>
@@ -1507,12 +1507,12 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-[866px] mx-auto w-full px-4 py-6">
+        <div className="max-w-[866px] mx-auto w-full px-3 sm:px-4 py-4 sm:py-6">
           {showEmpty ? (
             /* Welcome / empty state */
-            <div className="flex flex-col items-center justify-center min-h-[60vh] text-center gap-12 pt-12">
+            <div className="flex flex-col items-center justify-center min-h-[60vh] text-center gap-8 sm:gap-12 pt-8 sm:pt-12">
               <div>
-                <h2 className="text-3xl font-bold text-white mb-2 tracking-tight">
+                <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2 tracking-tight">
                   What can I help with?
                 </h2>
                 <p className="text-zinc-500 font-medium text-sm">
@@ -1521,12 +1521,12 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
               </div>
 
               {/* Suggestion chips */}
-              <div className="grid grid-cols-2 gap-3 w-full max-w-2xl mt-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl mt-4 px-2">
                 {SUGGESTIONS.map((s) => (
                   <button
                     key={s.prompt}
                     onClick={() => handleSuggestion(s.prompt)}
-                    className="flex items-center justify-center p-4 rounded-xl bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/80 hover:border-zinc-700/80 transition-all duration-200 text-center cursor-pointer group"
+                    className="flex items-center justify-center p-3 sm:p-4 rounded-xl bg-zinc-900/40 hover:bg-zinc-800/60 border border-zinc-800/80 hover:border-zinc-700/80 transition-all duration-200 text-center cursor-pointer group"
                   >
                     <span className="text-sm text-zinc-400 group-hover:text-zinc-200 transition-colors">
                       {s.prompt}
@@ -1567,7 +1567,7 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
         </div>
       </div>
 
-      <div className="flex-shrink-0 px-4 pb-6 pt-2">
+      <div className="flex-shrink-0 px-2 sm:px-4 pb-4 sm:pb-6 pt-2">
         <div className="max-w-[866px] mx-auto">
 
           {/* ===== LIMIT REACHED BANNER ===== */}
@@ -1646,7 +1646,7 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
                 placeholder={isLimited ? "Message limit reached — check back later..." : "Ask anything..."}
                 disabled={isLimited}
                 rows={1}
-                className="w-full bg-transparent resize-none outline-none text-[15px] text-white placeholder-[#777] leading-relaxed min-h-[52px] max-h-[200px] px-2 py-2"
+                className="w-full bg-transparent resize-none outline-none text-[14px] sm:text-[15px] text-white placeholder-[#777] leading-relaxed min-h-[44px] sm:min-h-[52px] max-h-[200px] px-2 py-2"
               />
 
               {/* Action bar on the bottom */}
