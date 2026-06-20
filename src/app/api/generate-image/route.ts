@@ -1,22 +1,8 @@
-import OpenAI from "openai";
-
 export const maxDuration = 60;
 
-const client = new OpenAI({
-  baseURL: "https://ai-gateway.vercel.sh/v1",
-  apiKey: process.env.AI_GATEWAY_API_KEY ?? "",
-});
-
 export async function POST(req: Request) {
-  if (!process.env.AI_GATEWAY_API_KEY) {
-    return Response.json(
-      { error: "AI_GATEWAY_API_KEY is not configured. Add it to .env.local." },
-      { status: 500 }
-    );
-  }
-
   try {
-    const { prompt, model: modelOverride } = await req.json();
+    const { prompt } = await req.json();
 
     if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
       return Response.json({ error: "Missing or invalid prompt" }, { status: 400 });
@@ -26,26 +12,29 @@ export async function POST(req: Request) {
       return Response.json({ error: "Prompt too long (max 1000 characters)" }, { status: 400 });
     }
 
-    // Default to openai/gpt-image-2 as requested
-    const model = modelOverride ?? "openai/gpt-image-2";
+    const trimmed = prompt.trim();
 
-    const response = await client.images.generate({
-      model,
-      prompt: prompt.trim(),
-    });
+    // Build direct Pollinations CDN URL — no API key needed, zero server cost
+    const seed = Math.floor(Math.random() * 99999);
+    const encodedPrompt = encodeURIComponent(trimmed);
+    const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&seed=${seed}&nologo=true&model=flux&enhance=true`;
 
-    const url = response.data?.[0]?.url || response.data?.[0]?.b64_json;
-    if (!url) throw new Error("No image data returned from gateway");
+    // Verify the URL is reachable (HEAD request) so the client gets a definitive error immediately instead of a broken img tag
+    const check = await fetch(url, { method: "HEAD", signal: AbortSignal.timeout(25000) });
 
-    // The OpenAI response format might return an actual URL or b64 depending on the specific gateway wrapper
-    const finalUrl = url.startsWith("http") ? url : `data:image/png;base64,${url}`;
+    if (!check.ok) {
+      return Response.json(
+        { error: "Image service unavailable or overloaded." },
+        { status: 502 }
+      );
+    }
 
-    return Response.json({ url: finalUrl, model });
+    return Response.json({ url });
   } catch (err: any) {
     const message = err?.message ?? "Unknown error";
-    console.error("[generate-image] Gateway error:", message);
+    console.error("[generate-image] Error:", message);
     return Response.json(
-      { error: `Image generation failed: ${message}` },
+      { error: "Image service unavailable or overloaded." },
       { status: 500 }
     );
   }
