@@ -177,9 +177,12 @@ export default function ChatPage() {
       )}
 
       <aside
-        className={`absolute md:relative z-50 h-full flex flex-col bg-[#171717] transition-all duration-300 ease-in-out flex-shrink-0 ${
-          sidebarOpen ? "w-64" : "w-0 overflow-hidden"
+        className={`absolute md:relative z-50 h-full flex flex-col bg-[#171717] transition-all duration-300 ease-in-out flex-shrink-0 border-r border-zinc-800/50 md:border-none ${
+          sidebarOpen 
+            ? "translate-x-0 w-[280px] md:w-64 shadow-2xl md:shadow-none" 
+            : "-translate-x-full w-[280px] md:w-0 md:translate-x-0 overflow-hidden"
         }`}
+        style={{ left: 0, top: 0 }}
       >
         {/* Sidebar header */}
         <div className="flex items-center justify-between px-3 py-3">
