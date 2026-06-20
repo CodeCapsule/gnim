@@ -28,7 +28,8 @@ export async function POST(req: Request) {
     let text = "";
 
     if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
-      const data = await pdf(buffer);
+      const pdfParser = pdf.default || pdf;
+      const data = await pdfParser(buffer);
       text = data.text;
     } else if (
       file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || 
