@@ -383,6 +383,85 @@ function CodeBlock({ lang, ext, code, children }: { lang: string; ext: string; c
   );
 }
 
+// Global cache to avoid re-generating identical images across remounts
+const globalImageCache = new Map<string, string>();
+
+// ---------- Generate Image Widget ----------
+function GenerateImageWidget({
+  prompt,
+}: {
+  prompt: string;
+}) {
+  const [state, setState] = useState<"loading" | "done" | "error">(globalImageCache.has(prompt) ? "done" : "loading");
+  const [imageUrl, setImageUrl] = useState<string>(globalImageCache.get(prompt) || "");
+  const [errorMsg, setErrorMsg] = useState("");
+  const sentRef = useRef(globalImageCache.has(prompt));
+
+  useEffect(() => {
+    if (sentRef.current) return;
+    sentRef.current = true;
+
+    async function doGenerate() {
+      try {
+        const res = await fetch(`/api/generate-image`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt }),
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) {
+          setErrorMsg(data.error ?? "Failed to generate image");
+          setState("error");
+          return;
+        }
+        globalImageCache.set(prompt, data.url);
+        setImageUrl(data.url);
+        setState("done");
+      } catch (e: any) {
+        setErrorMsg(e.message ?? "Network error");
+        setState("error");
+      }
+    }
+    doGenerate();
+  }, [prompt]);
+
+  if (state === "loading") {
+    return (
+      <div className="flex flex-col gap-3 mt-2 mb-4">
+        <div className="rounded-xl p-6 w-full max-w-[480px] bg-zinc-900/60 border border-zinc-800/70 shadow-sm flex flex-col items-center justify-center min-h-[240px]">
+          <div className="w-10 h-10 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mb-4" />
+          <div className="text-[13px] font-medium text-zinc-300">Generating image...</div>
+          <div className="text-[11px] text-zinc-500 mt-2 text-center max-w-[80%] truncate">"{prompt}"</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (state === "error") {
+    return (
+      <div className="flex items-start gap-3 my-3 px-4 py-3 rounded-2xl bg-red-900/20 border border-red-500/20 max-w-[420px]">
+        <div className="text-red-400 mt-0.5">⚠️</div>
+        <div className="flex flex-col min-w-0">
+          <div className="text-[13px] font-semibold text-red-400">Failed to generate image</div>
+          <div className="text-[12px] text-red-400/80 mt-0.5">{errorMsg}</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="my-4">
+      <img
+        src={imageUrl}
+        alt={prompt}
+        title={prompt}
+        className="rounded-xl max-w-full max-h-[480px] object-contain border border-zinc-800 shadow-xl"
+        onError={(e) => { (e.target as HTMLImageElement).alt = "Image failed to load"; }}
+      />
+    </div>
+  );
+}
+
 // ---------- FetchUrl Widget ----------
 function FetchUrlWidget({
   url,
@@ -680,7 +759,12 @@ const MessageBubble = React.memo(function MessageBubble({
         : typeof className === "string"
           ? className.includes("language-fetch-url")
           : false;
-      if (isWeather || isFetchUrl) return <>{children}</>;
+      const isGenerateImage = Array.isArray(className)
+        ? className.includes("language-generate-image") || className.includes("language-generate")
+        : typeof className === "string"
+          ? className.includes("language-generate-image") || className.includes("language-generate")
+          : false;
+      if (isWeather || isFetchUrl || isGenerateImage) return <>{children}</>;
       return <pre {...props}>{children}</pre>;
     },
     code({ node, inline, className, children, ...props }: any) {
@@ -726,6 +810,22 @@ const MessageBubble = React.memo(function MessageBubble({
               onContent={onWebContent ?? (() => {})}
             />
           );
+        }
+        return null;
+      }
+      // ---- Generate-Image block ----
+      const isGenerateImage = !inline && match && (match[1] === "generate-image" || match[1] === "generate");
+      if (isGenerateImage) {
+        let promptStr = "";
+        try {
+          const parsed = JSON.parse(contentStr);
+          promptStr = parsed.prompt ?? "";
+        } catch {
+          const m = contentStr.match(/"prompt"\s*:\s*"([^"]+)/);
+          if (m) promptStr = m[1];
+        }
+        if (promptStr) {
+          return <GenerateImageWidget prompt={promptStr} />;
         }
         return null;
       }
