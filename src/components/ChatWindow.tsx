@@ -1084,7 +1084,7 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
   );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [stagedFile, setStagedFile] = useState<{ file: File; preview: string } | null>(null);
+  const [stagedFiles, setStagedFiles] = useState<{ file: File; preview: string }[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const { remaining, isLimited, increment, resetLabel } = useRateLimit();
 
@@ -1129,7 +1129,7 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
       const reader = new FileReader();
       reader.onload = (ev) => {
         const preview = typeof ev.target?.result === "string" ? ev.target.result : "";
-        setStagedFile({ file, preview });
+        setStagedFiles(p => [...p, { file, preview }]);
       };
       reader.readAsDataURL(file);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -1156,7 +1156,7 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
       
       if (!res.ok) throw new Error(data.error || "Failed to parse file");
       
-      setStagedFile({ file, preview: data.text });
+      setStagedFiles(p => [...p, { file, preview: data.text }]);
     } catch (err: any) {
       setError(err.message || "Failed to parse file");
     } finally {
@@ -1177,15 +1177,14 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
     setIsDragging(false);
     
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      processFile(e.dataTransfer.files[0]);
+      Array.from(e.dataTransfer.files).forEach(processFile);
     }
   };
 
   // File change handler
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      processFile(file);
+    if (e.target.files) {
+      Array.from(e.target.files).forEach(processFile);
     }
   };
 
@@ -1226,7 +1225,7 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
     ta.style.height = Math.min(ta.scrollHeight, 200) + "px";
   };
 
-  const sendMessage = async (userText: string, attachmentUrl?: string) => {
+  const sendMessage = async (userText: string, attachmentUrls?: string[]) => {
     if (!userText.trim() || isLoading || isLimited) return;
     increment();
 
@@ -1297,12 +1296,12 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
           modelId: selectedModelId,
           modelName: selectedModel,
           messages: newMessages.map((m) => {
-            if (m.id === userMsg.id && attachmentUrl) {
+            if (m.id === userMsg.id && attachmentUrls && attachmentUrls.length > 0) {
               return {
                 role: m.role,
                 content: [
                   { type: "text", text: m.content },
-                  { type: "image", image: attachmentUrl }
+                  ...attachmentUrls.map(url => ({ type: "image", image: url }))
                 ]
               };
             }
@@ -1367,26 +1366,30 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() && !stagedFile) return;
+    if (!input.trim() && stagedFiles.length === 0) return;
 
     let finalInput = input.trim();
-    let attachmentUrl: string | undefined = undefined;
+    let attachmentUrls: string[] = [];
 
-    if (stagedFile) {
-      const { file, preview } = stagedFile;
-      if (file.type.startsWith("image/")) {
-        finalInput = finalInput ? `[Attached image: ${file.name}]\n\n${finalInput}` : `[Attached image: ${file.name}]`;
-        attachmentUrl = preview;
-      } else {
-        const truncated = preview.length > 15000 ? preview.slice(0, 15000) + "\n\n[File truncated — too large to show fully]" : preview;
-        finalInput = finalInput ? `[Attached file: ${file.name}]\n\nHere is its content:\n\n\`\`\`\n${truncated}\n\`\`\`\n\n${finalInput}` : `[Attached file: ${file.name}]\n\nHere is its content:\n\n\`\`\`\n${truncated}\n\`\`\``;
+    if (stagedFiles.length > 0) {
+      let filesText = "";
+      for (const sf of stagedFiles) {
+        const { file, preview } = sf;
+        if (file.type.startsWith("image/")) {
+          filesText += `[Attached image: ${file.name}]\n\n`;
+          attachmentUrls.push(preview);
+        } else {
+          const truncated = preview.length > 15000 ? preview.slice(0, 15000) + "\n\n[File truncated — too large to show fully]" : preview;
+          filesText += `[Attached file: ${file.name}]\n\nHere is its content:\n\n\`\`\`\n${truncated}\n\`\`\`\n\n`;
+        }
       }
-      setStagedFile(null);
+      finalInput = finalInput ? `${filesText}${finalInput}` : filesText.trim();
+      setStagedFiles([]);
     }
     
     setInput("");
-    if (finalInput.trim() || attachmentUrl) {
-      sendMessage(finalInput, attachmentUrl);
+    if (finalInput.trim() || attachmentUrls.length > 0) {
+      sendMessage(finalInput, attachmentUrls);
     }
   };
 
@@ -1606,34 +1609,39 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
               {/* Hidden file input */}
               <input 
                 type="file" 
+                multiple
                 className="hidden" 
                 ref={fileInputRef} 
                 onChange={handleFileChange} 
               />
 
-              {/* Staged File Preview */}
-              {stagedFile && (
-                <div className="mb-3 relative group w-[72px] h-[72px] rounded-xl border border-zinc-700/50 bg-[#1c1c1e] overflow-hidden shadow-sm">
-                  {stagedFile.file.type.startsWith("image/") ? (
-                    <img 
-                      src={stagedFile.preview} 
-                      alt="preview" 
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-800/40 text-blue-400">
-                      <Paperclip size={24} />
-                      <span className="text-[9px] mt-1 text-zinc-400 truncate w-full px-1 text-center">{stagedFile.file.name.split('.').pop()?.toUpperCase()}</span>
+              {/* Staged File Previews */}
+              {stagedFiles.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {stagedFiles.map((sf, idx) => (
+                    <div key={idx} className="relative group w-[72px] h-[72px] rounded-xl border border-zinc-700/50 bg-[#1c1c1e] overflow-hidden shadow-sm">
+                      {sf.file.type.startsWith("image/") ? (
+                        <img 
+                          src={sf.preview} 
+                          alt="preview" 
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-800/40 text-blue-400">
+                          <Paperclip size={24} />
+                          <span className="text-[9px] mt-1 text-zinc-400 truncate w-full px-1 text-center">{sf.file.name.split('.').pop()?.toUpperCase()}</span>
+                        </div>
+                      )}
+                      {/* Remove Button */}
+                      <button 
+                        type="button"
+                        onClick={() => setStagedFiles(prev => prev.filter((_, i) => i !== idx))}
+                        className="absolute top-1 right-1 w-5 h-5 bg-zinc-700/80 text-zinc-200 rounded-full flex items-center justify-center text-[10px] shadow-md border border-zinc-600 hover:bg-zinc-600 transition-colors z-10 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 backdrop-blur-sm"
+                      >
+                        <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M1 1l10 10M11 1L1 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                      </button>
                     </div>
-                  )}
-                  {/* Remove Button */}
-                  <button 
-                    type="button"
-                    onClick={() => setStagedFile(null)}
-                    className="absolute -top-1 -right-1 w-5 h-5 bg-zinc-700 text-zinc-200 rounded-full flex items-center justify-center text-[10px] shadow-md border border-zinc-600 hover:bg-zinc-600 transition-colors z-10"
-                  >
-                    <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M1 1l10 10M11 1L1 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                  </button>
+                  ))}
                 </div>
               )}
 
