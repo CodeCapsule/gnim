@@ -514,10 +514,66 @@ const MessageBubble = React.memo(function MessageBubble({
   }, []);
 
   if (isUser) {
+    // Parse out file/image attachment metadata from the content
+    let displayText = message.content;
+    let attachedFileName: string | null = null;
+    let attachedFileIsImage = false;
+
+    const fileMatch = message.content.match(/^\[Attached file: (.+?)\]/);
+    const imageMatch = message.content.match(/^\[Attached image: (.+?)\]/);
+
+    if (fileMatch) {
+      attachedFileName = fileMatch[1];
+      // Strip everything up to and including the closing ``` block - show only the user's text
+      const afterBlock = message.content.indexOf("```\n\n");
+      displayText = afterBlock !== -1
+        ? message.content.slice(afterBlock + 5).trim()
+        : message.content.replace(/^\[Attached file: .+?\]\n\nHere is its content:\n\n```[\s\S]*?```\n\n?/, "").trim();
+    } else if (imageMatch) {
+      attachedFileName = imageMatch[1];
+      attachedFileIsImage = true;
+      displayText = message.content.replace(/^\[Attached image: .+?\]\n?\n?/, "").trim();
+    }
+
+    // Get file extension icon color
+    const getFileColor = (name: string) => {
+      const ext = name.split(".").pop()?.toLowerCase() || "";
+      if (["pdf"].includes(ext)) return { bg: "bg-red-500/15", border: "border-red-500/30", text: "text-red-400", icon: "📄" };
+      if (["docx", "doc"].includes(ext)) return { bg: "bg-blue-500/15", border: "border-blue-500/30", text: "text-blue-400", icon: "📝" };
+      if (["xlsx", "xls", "csv", "tsv"].includes(ext)) return { bg: "bg-green-500/15", border: "border-green-500/30", text: "text-green-400", icon: "📊" };
+      if (["pptx", "ppt"].includes(ext)) return { bg: "bg-orange-500/15", border: "border-orange-500/30", text: "text-orange-400", icon: "📎" };
+      if (["json", "yaml", "toml", "xml"].includes(ext)) return { bg: "bg-yellow-500/15", border: "border-yellow-500/30", text: "text-yellow-400", icon: "🗂️" };
+      if (["js", "ts", "tsx", "jsx", "py", "go", "rs", "java", "cs", "php", "html", "css", "sql"].includes(ext)) return { bg: "bg-purple-500/15", border: "border-purple-500/30", text: "text-purple-400", icon: "💻" };
+      if (["md", "txt", "rtf"].includes(ext)) return { bg: "bg-zinc-500/15", border: "border-zinc-500/30", text: "text-zinc-400", icon: "📃" };
+      if (["log"].includes(ext)) return { bg: "bg-zinc-500/15", border: "border-zinc-500/30", text: "text-zinc-400", icon: "🗒️" };
+      if (["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext)) return { bg: "bg-pink-500/15", border: "border-pink-500/30", text: "text-pink-400", icon: "🖼️" };
+      return { bg: "bg-zinc-500/15", border: "border-zinc-500/30", text: "text-zinc-400", icon: "📁" };
+    };
+
+    const fileStyle = attachedFileName ? getFileColor(attachedFileName) : null;
+
     return (
       <div className="flex justify-end py-2">
-        <div className="bg-[#2f2f2f] text-white px-5 py-2.5 rounded-3xl max-w-[75%] text-[15px] leading-relaxed">
-          <p className="whitespace-pre-wrap">{message.content}</p>
+        <div className="flex flex-col items-end gap-2 max-w-[75%]">
+          {attachedFileName && (
+            <div className={`flex items-center gap-3 px-4 py-2.5 rounded-2xl border ${fileStyle!.bg} ${fileStyle!.border} w-full`}>
+              <div className={`flex-shrink-0 w-9 h-9 rounded-xl ${fileStyle!.bg} ${fileStyle!.border} border flex items-center justify-center text-lg`}>
+                {attachedFileIsImage ? "🖼️" : fileStyle!.icon}
+              </div>
+              <div className="flex flex-col min-w-0 flex-1">
+                <span className={`text-[13px] font-semibold ${fileStyle!.text} truncate`}>{attachedFileName}</span>
+                <span className="text-[11px] text-zinc-500">{attachedFileIsImage ? "Image" : "File"} attached • parsed by AI</span>
+              </div>
+              <div className="flex-shrink-0">
+                <div className="w-2 h-2 rounded-full bg-emerald-500" />
+              </div>
+            </div>
+          )}
+          {displayText && (
+            <div className="bg-[#2f2f2f] text-white px-5 py-2.5 rounded-3xl text-[15px] leading-relaxed">
+              <p className="whitespace-pre-wrap">{displayText}</p>
+            </div>
+          )}
         </div>
       </div>
     );
