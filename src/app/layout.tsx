@@ -8,6 +8,13 @@ export const metadata: Metadata = {
   description: "A private, local AI chatbot powered by Google Gemini. Your conversations stay completely secure and private.",
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
 export default function RootLayout({
   children,
 }: {
