@@ -1,38 +1,22 @@
+import OpenAI from "openai";
+
 export const maxDuration = 60;
 
-/**
- * Image Generation Route
- *
- * Uses Pollinations.ai — a free, no-auth-required image generation API.
- * No extra API keys needed. Works out of the box.
- *
- * If you want to switch to a paid provider in the future, simply replace
- * the `generateWithPollinations` function below.
- */
-
-async function generateWithPollinations(prompt: string): Promise<string> {
-  const encodedPrompt = encodeURIComponent(prompt);
-  // Use a unique seed from timestamp to avoid cached results
-  const seed = Date.now();
-  const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&seed=${seed}&nologo=true&model=flux`;
-
-  const res = await fetch(url, {
-    headers: { Accept: "image/*" },
-  });
-
-  if (!res.ok) {
-    throw new Error(`Pollinations returned ${res.status}: ${res.statusText}`);
-  }
-
-  const contentType = res.headers.get("content-type") || "image/jpeg";
-  const arrayBuffer = await res.arrayBuffer();
-  const base64 = Buffer.from(arrayBuffer).toString("base64");
-  return `data:${contentType};base64,${base64}`;
-}
+const client = new OpenAI({
+  baseURL: "https://ai-gateway.vercel.sh/v1",
+  apiKey: process.env.AI_GATEWAY_API_KEY ?? "",
+});
 
 export async function POST(req: Request) {
+  if (!process.env.AI_GATEWAY_API_KEY) {
+    return Response.json(
+      { error: "AI_GATEWAY_API_KEY is not configured. Add it to .env.local." },
+      { status: 500 }
+    );
+  }
+
   try {
-    const { prompt } = await req.json();
+    const { prompt, model: modelOverride } = await req.json();
 
     if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
       return Response.json({ error: "Missing or invalid prompt" }, { status: 400 });
@@ -42,11 +26,24 @@ export async function POST(req: Request) {
       return Response.json({ error: "Prompt too long (max 1000 characters)" }, { status: 400 });
     }
 
-    const url = await generateWithPollinations(prompt.trim());
-    return Response.json({ url, provider: "pollinations" });
+    // Default to bfl/flux-2-pro as requested
+    const model = modelOverride ?? "bfl/flux-2-pro";
+
+    const response = await client.images.generate({
+      model,
+      prompt: prompt.trim(),
+    });
+
+    const url = response.data?.[0]?.url || response.data?.[0]?.b64_json;
+    if (!url) throw new Error("No image data returned from gateway");
+
+    // The OpenAI response format might return an actual URL or b64 depending on the specific gateway wrapper
+    const finalUrl = url.startsWith("http") ? url : `data:image/png;base64,${url}`;
+
+    return Response.json({ url: finalUrl, model });
   } catch (err: any) {
     const message = err?.message ?? "Unknown error";
-    console.error("[generate-image] Error:", message);
+    console.error("[generate-image] Gateway error:", message);
     return Response.json(
       { error: `Image generation failed: ${message}` },
       { status: 500 }

@@ -386,52 +386,51 @@ function CodeBlock({ lang, ext, code, children }: { lang: string; ext: string; c
 // Global cache to avoid duplicate requests across remounts
 const globalImageCache = new Map<string, string>();
 
-// Build a direct Pollinations.ai URL — loads in-browser, zero server cost
-function buildPollinationsUrl(prompt: string): string {
-  const seed = Math.floor(Math.random() * 999999);
-  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=1024&seed=${seed}&nologo=true&model=flux&enhance=true`;
-}
-
 // ---------- Generate Image Widget ----------
-// Loads images directly from Pollinations CDN in the browser.
-// No server round-trip, no API key, no token cost — just a URL.
 function GenerateImageWidget({
   prompt,
 }: {
   prompt: string;
 }) {
   const [retryCount, setRetryCount] = useState(0);
-  const [autoRetryCount, setAutoRetryCount] = useState(0);
 
-  const [state, setState] = useState<"loading" | "done" | "error">(
-    globalImageCache.has(prompt) ? "done" : "loading"
-  );
-  const [imageUrl, setImageUrl] = useState<string>(() => {
-    if (globalImageCache.has(prompt)) return globalImageCache.get(prompt)!;
-    const url = buildPollinationsUrl(prompt);
-    globalImageCache.set(prompt, url);
-    return url;
-  });
+  const [state, setState] = useState<"loading" | "done" | "error">(globalImageCache.has(prompt) ? "done" : "loading");
+  const [imageUrl, setImageUrl] = useState<string>(globalImageCache.get(prompt) || "");
+  const [errorMsg, setErrorMsg] = useState("");
+  const sentRef = useRef(globalImageCache.has(prompt));
+
+  useEffect(() => {
+    if (sentRef.current) return;
+    sentRef.current = true;
+
+    async function doGenerate() {
+      try {
+        const res = await fetch(`/api/generate-image`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt }),
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) {
+          setErrorMsg(data.error ?? "Failed to generate image");
+          setState("error");
+          return;
+        }
+        globalImageCache.set(prompt, data.url);
+        setImageUrl(data.url);
+        setState("done");
+      } catch (e: any) {
+        setErrorMsg(e.message ?? "Network error");
+        setState("error");
+      }
+    }
+    doGenerate();
+  }, [prompt, retryCount]);
 
   const handleRetry = () => {
     setState("loading");
     setRetryCount(c => c + 1);
-    const newUrl = buildPollinationsUrl(prompt);
-    globalImageCache.set(prompt, newUrl);
-    setImageUrl(newUrl);
-  };
-
-  const handleImageError = () => {
-    if (autoRetryCount < 3) {
-      setAutoRetryCount(c => c + 1);
-      setTimeout(() => {
-        const newUrl = buildPollinationsUrl(prompt);
-        globalImageCache.set(prompt, newUrl);
-        setImageUrl(newUrl);
-      }, 1000); // 1s backoff
-    } else {
-      setState("error");
-    }
+    sentRef.current = false; // allow useEffect to fire again
   };
 
   if (state === "loading") {
@@ -440,19 +439,10 @@ function GenerateImageWidget({
         <div className="rounded-xl p-6 w-full max-w-[480px] bg-zinc-900/60 border border-zinc-800/70 shadow-sm flex flex-col items-center justify-center min-h-[240px]">
           <div className="w-10 h-10 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mb-4" />
           <div className="text-[13px] font-medium text-zinc-300">
-            {retryCount > 0 || autoRetryCount > 0 ? `Retrying... (${retryCount || autoRetryCount})` : "Generating image..."}
+            {retryCount > 0 ? `Retrying... (${retryCount})` : "Generating image..."}
           </div>
           <div className="text-[11px] text-zinc-500 mt-2 text-center max-w-[80%] truncate">"{prompt}"</div>
         </div>
-        {/* Preload the image — when it loads, flip state to done */}
-        <img
-          key={imageUrl}
-          src={imageUrl}
-          alt=""
-          style={{ display: "none" }}
-          onLoad={() => setState("done")}
-          onError={handleImageError}
-        />
       </div>
     );
   }
@@ -463,7 +453,7 @@ function GenerateImageWidget({
         <div className="text-red-400 mt-0.5">⚠️</div>
         <div className="flex flex-col min-w-0 w-full">
           <div className="text-[13px] font-semibold text-red-400">Failed to generate image</div>
-          <div className="text-[12px] text-red-400/80 mt-0.5 mb-2">Image service unavailable or overloaded.</div>
+          <div className="text-[12px] text-red-400/80 mt-0.5 mb-2">{errorMsg || "Image service unavailable or overloaded."}</div>
           <button 
             onClick={handleRetry}
             className="self-start text-[11px] font-medium px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-md transition-colors"
