@@ -1242,7 +1242,16 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
     setInput("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
 
-    const selectedModelId = selectedMode === "image" ? "openai/dall-e-2" : "openai/gpt-5.5";
+    const lowerUserText = userText.toLowerCase();
+    const isImageRequest = 
+      lowerUserText.includes("create image") ||
+      lowerUserText.includes("generate image") ||
+      lowerUserText.includes("storyboard") ||
+      lowerUserText.includes("draw") ||
+      lowerUserText.includes("illustrate");
+
+    const effectiveMode = isImageRequest ? "image" : selectedMode;
+    const selectedModelId = effectiveMode === "image" ? "openai/dall-e-2" : "openai/gpt-5.5";
 
     // Optimistic title save
     const title =
@@ -1257,7 +1266,7 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
     setMessages([...newMessages, assistantPlaceholder]);
 
     // ---- IMAGE GENERATION MODE ----
-    if (selectedMode === "image") {
+    if (effectiveMode === "image") {
       setImageGenerating(true);
       setIsLoading(true);
       try {
