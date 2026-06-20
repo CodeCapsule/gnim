@@ -962,12 +962,21 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
     
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const file = e.dataTransfer.files[0];
+      const isImage = file.type.startsWith("image/");
+      const isText = file.type.startsWith("text/") || file.type === "application/json" || /\.(md|csv|json|js|ts|tsx|jsx|py|html|css)$/i.test(file.name);
+      
+      if (!isImage && !isText) {
+        setError(`Unsupported file type: ${file.name}. Only text and images are supported.`);
+        return;
+      }
+
       const reader = new FileReader();
       reader.onload = (ev) => {
         const preview = typeof ev.target?.result === "string" ? ev.target.result : "";
         setStagedFile({ file, preview });
       };
-      if (file.type.startsWith("image/")) {
+      
+      if (isImage) {
         reader.readAsDataURL(file);
       } else {
         reader.readAsText(file);
@@ -979,13 +988,22 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      const isImage = file.type.startsWith("image/");
+      const isText = file.type.startsWith("text/") || file.type === "application/json" || /\.(md|csv|json|js|ts|tsx|jsx|py|html|css)$/i.test(file.name);
+      
+      if (!isImage && !isText) {
+        setError(`Unsupported file type: ${file.name}. Only text and images are supported.`);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
+
       const reader = new FileReader();
       reader.onload = (ev) => {
         const preview = typeof ev.target?.result === "string" ? ev.target.result : "";
         setStagedFile({ file, preview });
       };
       // Read as text for text-based files, as dataURL for images
-      if (file.type.startsWith("image/")) {
+      if (isImage) {
         reader.readAsDataURL(file);
       } else {
         reader.readAsText(file);
