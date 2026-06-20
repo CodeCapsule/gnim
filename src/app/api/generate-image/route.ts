@@ -1,10 +1,11 @@
-import { createGateway } from "@ai-sdk/gateway";
-import { experimental_generateImage as generateImage } from "ai";
+import OpenAI from "openai";
 
 export const maxDuration = 60;
 
-// Re-use the same AI Gateway as the chat route
-const gateway = createGateway({
+// Use Vercel AI Gateway's OpenAI-compatible endpoint
+// This routes all image requests through the gateway (one key, unified billing, observability)
+const gateway = new OpenAI({
+  baseURL: "https://ai-gateway.vercel.sh/v1",
   apiKey: process.env.AI_GATEWAY_API_KEY ?? "",
 });
 
@@ -27,24 +28,22 @@ export async function POST(req: Request) {
       return Response.json({ error: "Prompt too long (max 1000 characters)" }, { status: 400 });
     }
 
-    // Default to DALL-E 3 via the gateway; callers can override with a gateway model id
-    const imageModel = modelOverride ?? "openai/dall-e-3";
+    // Use dall-e-3 via the gateway's OpenAI-compatible API
+    const model = modelOverride ?? "dall-e-3";
 
-    const result = await generateImage({
-      model: gateway.imageModel(imageModel),
+    const response = await gateway.images.generate({
+      model,
       prompt: prompt.trim(),
       n: 1,
       size: "1024x1024",
+      response_format: "b64_json",
     });
 
-    const image = result.images?.[0];
-    if (!image) throw new Error("No image data returned from gateway");
+    const b64 = response.data?.[0]?.b64_json;
+    if (!b64) throw new Error("No image data returned from gateway");
 
-    // The SDK returns base64 — convert to a data URL the browser can render directly
-    const base64 = image.base64;
-    const url = `data:image/png;base64,${base64}`;
-
-    return Response.json({ url, model: imageModel });
+    const url = `data:image/png;base64,${b64}`;
+    return Response.json({ url, model });
   } catch (err: any) {
     const message = err?.message ?? "Unknown error";
     console.error("[generate-image] Gateway error:", message);
