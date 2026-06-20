@@ -1123,6 +1123,26 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
 
   const processFile = async (file: File) => {
     setError(null);
+    
+    // Size validation
+    const ext = file.name.split('.').pop()?.toLowerCase() || '';
+    const sizeMB = file.size / (1024 * 1024);
+
+    let maxSize = 50; // default
+    if (file.type.startsWith("video/")) maxSize = 2000;
+    else if (file.type.startsWith("audio/")) maxSize = 250;
+    else if (ext === 'pdf') maxSize = 200;
+    else if (ext === 'docx') maxSize = 100;
+    else if (ext === 'pptx') maxSize = 100;
+    else if (ext === 'xlsx') maxSize = 100;
+    else if (file.type.startsWith("image/")) maxSize = 50;
+
+    if (sizeMB > maxSize) {
+      setError(`File "${file.name}" exceeds the ${maxSize}MB limit.`);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
     const isImage = file.type.startsWith("image/");
     
     if (isImage) {
