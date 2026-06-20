@@ -8,6 +8,9 @@
     "start": "next start",
     "lint": "eslint"
   },
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "dependencies": {
     "@ai-sdk/gateway": "^3.0.130",
     "@ai-sdk/google": "^1.2.19",
