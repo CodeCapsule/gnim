@@ -1,23 +1,23 @@
-import OpenAI from "openai";
+import { createGateway } from "@ai-sdk/gateway";
+import { experimental_generateImage as generateImage } from "ai";
 
 export const maxDuration = 60;
 
+// Re-use the same AI Gateway as the chat route
+const gateway = createGateway({
+  apiKey: process.env.AI_GATEWAY_API_KEY ?? "",
+});
+
 export async function POST(req: Request) {
-  if (!process.env.XAI_API_KEY) {
+  if (!process.env.AI_GATEWAY_API_KEY) {
     return Response.json(
-      { error: "XAI_API_KEY is not configured. Add it to .env.local." },
+      { error: "AI_GATEWAY_API_KEY is not configured. Add it to .env.local." },
       { status: 500 }
     );
   }
 
-  // Instantiate inside the handler so it runs at request time, not build time
-  const xai = new OpenAI({
-    baseURL: "https://api.x.ai/v1",
-    apiKey: process.env.XAI_API_KEY,
-  });
-
   try {
-    const { prompt } = await req.json();
+    const { prompt, model: modelOverride } = await req.json();
 
     if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
       return Response.json({ error: "Missing or invalid prompt" }, { status: 400 });
@@ -27,21 +27,27 @@ export async function POST(req: Request) {
       return Response.json({ error: "Prompt too long (max 1000 characters)" }, { status: 400 });
     }
 
-    const response = await xai.images.generate({
-      model: "grok-2-image",
+    // Default to DALL-E 3 via the gateway; callers can override with a gateway model id
+    const imageModel = modelOverride ?? "openai/dall-e-3";
+
+    const result = await generateImage({
+      model: gateway.imageModel(imageModel),
       prompt: prompt.trim(),
       n: 1,
-      response_format: "b64_json",
+      size: "1024x1024",
     });
 
-    const b64 = response.data?.[0]?.b64_json;
-    if (!b64) throw new Error("No image data returned from Grok");
+    const image = result.images?.[0];
+    if (!image) throw new Error("No image data returned from gateway");
 
-    const url = `data:image/jpeg;base64,${b64}`;
-    return Response.json({ url });
+    // The SDK returns base64 — convert to a data URL the browser can render directly
+    const base64 = image.base64;
+    const url = `data:image/png;base64,${base64}`;
+
+    return Response.json({ url, model: imageModel });
   } catch (err: any) {
     const message = err?.message ?? "Unknown error";
-    console.error("[generate-image] Grok error:", message);
+    console.error("[generate-image] Gateway error:", message);
     return Response.json(
       { error: `Image generation failed: ${message}` },
       { status: 500 }
