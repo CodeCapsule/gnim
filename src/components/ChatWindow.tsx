@@ -948,9 +948,44 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
     setIsDragging(true);
   };
 
+  const processFile = async (file: File) => {
+    setError(null);
+    const isImage = file.type.startsWith("image/");
+    
+    if (isImage) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const preview = typeof ev.target?.result === "string" ? ev.target.result : "";
+        setStagedFile({ file, preview });
+      };
+      reader.readAsDataURL(file);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    // For non-images, parse via backend to support PDFs, DOCX, etc.
+    setIsLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/parse-file", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to parse file");
+      
+      setStagedFile({ file, preview: data.text });
+    } catch (err: any) {
+      setError(err.message || "Failed to parse file");
+    } finally {
+      setIsLoading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
-    // Only set dragging to false if we are leaving the main container
     if (e.currentTarget === e.target) {
       setIsDragging(false);
     }
@@ -961,26 +996,7 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
     setIsDragging(false);
     
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const file = e.dataTransfer.files[0];
-      const isImage = file.type.startsWith("image/");
-      const isText = file.type.startsWith("text/") || file.type === "application/json" || /\.(md|csv|json|js|ts|tsx|jsx|py|html|css)$/i.test(file.name);
-      
-      if (!isImage && !isText) {
-        setError(`Unsupported file type: ${file.name}. Only text and images are supported.`);
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const preview = typeof ev.target?.result === "string" ? ev.target.result : "";
-        setStagedFile({ file, preview });
-      };
-      
-      if (isImage) {
-        reader.readAsDataURL(file);
-      } else {
-        reader.readAsText(file);
-      }
+      processFile(e.dataTransfer.files[0]);
     }
   };
 
@@ -988,29 +1004,7 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const isImage = file.type.startsWith("image/");
-      const isText = file.type.startsWith("text/") || file.type === "application/json" || /\.(md|csv|json|js|ts|tsx|jsx|py|html|css)$/i.test(file.name);
-      
-      if (!isImage && !isText) {
-        setError(`Unsupported file type: ${file.name}. Only text and images are supported.`);
-        if (fileInputRef.current) fileInputRef.current.value = "";
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const preview = typeof ev.target?.result === "string" ? ev.target.result : "";
-        setStagedFile({ file, preview });
-      };
-      // Read as text for text-based files, as dataURL for images
-      if (isImage) {
-        reader.readAsDataURL(file);
-      } else {
-        reader.readAsText(file);
-      }
-    }
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+      processFile(file);
     }
   };
 
