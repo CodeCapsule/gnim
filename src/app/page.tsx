@@ -16,6 +16,8 @@ import {
   ChevronRight,
   Settings,
   X,
+  RefreshCw,
+  LogOut,
   Zap,
   Github,
 } from "lucide-react";
@@ -74,6 +76,9 @@ export default function ChatPage() {
   const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [settingsTab, setSettingsTab] = useState<"About" | "Me">("About");
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authInput, setAuthInput] = useState("");
+  const [authError, setAuthError] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -92,6 +97,10 @@ export default function ChatPage() {
     // Default sidebar to open on desktop
     if (window.innerWidth >= 768) {
       setSidebarOpen(true);
+    }
+
+    if (localStorage.getItem("gnim_authed") === "true") {
+      setIsAuthenticated(true);
     }
 
     setMounted(true);
@@ -173,6 +182,50 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-screen bg-[#212121] text-white overflow-hidden">
+      {/* ===== AUTH MODAL ===== */}
+      {!isAuthenticated && (
+        <div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-[#171717] border border-zinc-800 p-8 rounded-3xl max-w-sm w-full shadow-2xl flex flex-col items-center animate-in fade-in zoom-in duration-300">
+            <div className="w-16 h-16 bg-orange-500/10 text-orange-500 rounded-full flex items-center justify-center mb-6 border border-orange-500/20">
+              <Lock size={28} />
+            </div>
+            <h2 className="text-2xl font-bold text-white mb-2 tracking-tight">Access Required</h2>
+            <p className="text-zinc-400 text-sm text-center mb-6 leading-relaxed">Please enter the access code to use the private chatbot.</p>
+            
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              if (authInput === "Pen123cil@@$$") {
+                setIsAuthenticated(true);
+                localStorage.setItem("gnim_authed", "true");
+                setAuthError(false);
+              } else {
+                setAuthError(true);
+                setAuthInput("");
+              }
+            }} className="w-full">
+              <input
+                type="password"
+                value={authInput}
+                onChange={(e) => {
+                  setAuthInput(e.target.value);
+                  setAuthError(false);
+                }}
+                placeholder="Enter access code"
+                className={`w-full bg-[#212121] border ${authError ? 'border-red-500/50 focus:border-red-500' : 'border-zinc-700 focus:border-orange-500'} rounded-xl px-4 py-3 text-white placeholder-zinc-500 focus:outline-none transition-colors mb-4`}
+              />
+              {authError && <p className="text-red-400 text-xs text-center mb-4 -mt-2">Incorrect code. Please try again.</p>}
+              <button
+                type="submit"
+                disabled={!authInput.trim()}
+                className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:hover:bg-orange-500 text-white font-bold py-3 rounded-xl transition-colors shadow-lg shadow-orange-500/20"
+              >
+                Enter
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* ===== SIDEBAR ===== */}
       {/* Mobile backdrop */}
       {sidebarOpen && (
