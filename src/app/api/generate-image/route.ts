@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 
-export const maxDuration = 60;
+export const runtime = "edge";
 
 const client = new OpenAI({
   apiKey: process.env.AI_GATEWAY_API_KEY,
