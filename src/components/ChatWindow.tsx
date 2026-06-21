@@ -1336,6 +1336,16 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
     setIsLoading(true);
     abortRef.current = new AbortController();
 
+    // Helper: strip base64 data URLs from message content before sending to AI
+    // to keep the payload small and avoid 413 errors.
+    const sanitizeForApi = (content: string): string => {
+      // Replace [GENERATED_IMAGE]:data:... with a small placeholder the AI can understand
+      if (content.startsWith("[GENERATED_IMAGE]:data:")) {
+        return "[GENERATED_IMAGE: base64 data omitted — previously processed image]";
+      }
+      return content;
+    };
+
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
@@ -1348,12 +1358,12 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
               return {
                 role: m.role,
                 content: [
-                  { type: "text", text: m.content },
+                  { type: "text", text: sanitizeForApi(m.content) },
                   ...attachmentUrls.map(url => ({ type: "image", image: url }))
                 ]
               };
             }
-            return { role: m.role, content: m.content };
+            return { role: m.role, content: sanitizeForApi(m.content) };
           }),
         }),
         signal: abortRef.current.signal,
