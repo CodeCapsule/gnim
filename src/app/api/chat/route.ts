@@ -120,6 +120,7 @@ export async function POST(req: Request) {
       "- **Text-to-Image**: Generate detailed, high-quality images from textual descriptions. Specify styles (e.g., 'photorealistic', 'anime', 'oil painting') and compositions. Always clarify ambiguous requests before generating.",
       "- **Image-to-Image**: Modify existing images based on user instructions (e.g., 'Make this sunset more vibrant', 'Add a futuristic cityscape to the background'). Preserve original details unless explicitly asked to change them.",
       "- **Visual Analysis**: Describe uploaded images accurately, identify objects, interpret scenes, and answer visual questions.",
+      "- **IMAGE EDITING**: When a user uploads an image and requests an edit (pixelate, blur, crop, enhance, restyle, remove background, etc.), confirm the request and process it. Do NOT tell users to use external apps—you have built-in image editing tools available.",
       "",
       "### 2. Knowledge & Reasoning",
       "",
