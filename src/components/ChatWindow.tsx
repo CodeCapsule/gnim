@@ -1429,11 +1429,56 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
     if (isImageEdit || fulfillingPending) {
       const activeCommand = isImageEdit ? finalInput : pendingFilter!;
 
+      // Check if there's a file attached
       if (imageFiles.length === 0) {
+        // Look back through messages for the last generated image URL
+        const lastGeneratedImageMsg = [...messages].reverse().find(
+          m => m.role === "assistant" && m.content.startsWith("[GENERATED_IMAGE]:")
+        );
+        const lastGeneratedImageUrl = lastGeneratedImageMsg
+          ? lastGeneratedImageMsg.content.split("\n")[0].replace("[GENERATED_IMAGE]:", "").trim()
+          : null;
+
+        if (lastGeneratedImageUrl) {
+          // Use the previously generated image — fetch it as a blob and process it
+          const userMsg: StoredMessage = { id: generateId(), role: "user", content: finalInput };
+          const newMessages = [...messages, userMsg];
+          setMessages(newMessages);
+          setInput("");
+          if (textareaRef.current) textareaRef.current.style.height = \"auto\";
+          setPendingFilter(null);
+          setIsLoading(true);
+
+          try {
+            const apiRes = await fetch("/api/edit-image-url", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ imageUrl: lastGeneratedImageUrl, message: activeCommand }),
+            });
+            const data = await apiRes.json();
+            const assistantId = generateId();
+            let assistantMsg: StoredMessage;
+            if (data.success && data.image) {
+              assistantMsg = { id: assistantId, role: "assistant", content: `[GENERATED_IMAGE]:${data.image}\n\n${data.message}` };
+            } else {
+              assistantMsg = { id: assistantId, role: "assistant", content: data.message || "⚠️ Processing failed. Try again." };
+            }
+            const finalMessages = [...newMessages, assistantMsg];
+            setMessages(finalMessages);
+            const title = conversation?.title && conversation.title !== "New Chat" ? conversation.title : userMsg.content.slice(0, 50).trim();
+            onUpdate({ id: convoId, title, createdAt: conversation?.createdAt ?? Date.now(), messages: finalMessages });
+          } catch (err: any) {
+            setError(err.message || "Failed to process image.");
+          } finally {
+            setIsLoading(false);
+          }
+          return;
+        }
+
+        // No previous image found — ask user to attach one
         setPendingFilter(activeCommand);
         const userMsg: StoredMessage = { id: generateId(), role: "user", content: finalInput };
         const assistantMsg: StoredMessage = { id: generateId(), role: "assistant", content: "Please attach an image first using 📎 so I can process your edit request." };
-        
         const finalMessages = [...messages, userMsg, assistantMsg];
         setMessages(finalMessages);
         setInput("");
