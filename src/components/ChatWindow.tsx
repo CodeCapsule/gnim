@@ -661,20 +661,24 @@ const MessageBubble = React.memo(function MessageBubble({
       <div className="flex justify-end py-2">
         <div className="flex flex-col items-end gap-2 max-w-[85%] md:max-w-[75%]">
           {attachedFileName && (
-            <div className={`flex items-center gap-3 px-4 py-2.5 rounded-2xl border ${fileStyle!.bg} ${fileStyle!.border} w-full`}>
-              <div className={`flex-shrink-0 w-12 h-12 rounded-xl ${fileStyle!.bg} ${fileStyle!.border} border flex items-center justify-center text-lg overflow-hidden`}>
-                {attachedFileIsImage && attachedFileUrl ? (
-                  <img src={attachedFileUrl} alt="uploaded" className="w-full h-full object-cover" />
-                ) : attachedFileIsImage ? "🖼️" : fileStyle!.icon}
+            attachedFileIsImage && attachedFileUrl ? (
+              <div className="rounded-2xl overflow-hidden border border-zinc-700/50 max-w-[300px] shadow-sm">
+                <img src={attachedFileUrl} alt={attachedFileName} className="w-full h-auto object-contain bg-[#1c1c1e]" />
               </div>
-              <div className="flex flex-col min-w-0 flex-1">
-                <span className={`text-[13px] font-semibold ${fileStyle!.text} truncate`}>{attachedFileName}</span>
-                <span className="text-[11px] text-zinc-500">{attachedFileIsImage ? "Image" : "File"} attached • parsed by AI</span>
+            ) : (
+              <div className={`flex items-center gap-3 px-4 py-2.5 rounded-2xl border ${fileStyle!.bg} ${fileStyle!.border} w-full`}>
+                <div className={`flex-shrink-0 w-12 h-12 rounded-xl ${fileStyle!.bg} ${fileStyle!.border} border flex items-center justify-center text-lg overflow-hidden`}>
+                  {fileStyle!.icon}
+                </div>
+                <div className="flex flex-col min-w-0 flex-1">
+                  <span className={`text-[13px] font-semibold ${fileStyle!.text} truncate`}>{attachedFileName}</span>
+                  <span className="text-[11px] text-zinc-500">File attached • parsed by AI</span>
+                </div>
+                <div className="flex-shrink-0">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                </div>
               </div>
-              <div className="flex-shrink-0">
-                <div className="w-2 h-2 rounded-full bg-emerald-500" />
-              </div>
-            </div>
+            )
           )}
           {displayText && (
             <div className="bg-[#2f2f2f] text-white px-5 py-2.5 rounded-3xl text-[15px] leading-relaxed">
