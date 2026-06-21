@@ -1187,6 +1187,7 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [stagedFiles, setStagedFiles] = useState<{ file: File; preview: string }[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [pendingFilter, setPendingFilter] = useState<string | null>(null);
   const { remaining, isLimited, increment, resetLabel } = useRateLimit();
 
   const convoId = conversation?.id ?? generateId();
@@ -1506,8 +1507,13 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
     const isBasicFilter = ["pixelate", "blur", "crop", "resize", "shrink", "smaller", "grayscale", "black and white", "rotate", "invert", "sharpen", "brighten", "darken", "flip", "sepia"].some(f => lowerInput.includes(f));
     const imageFiles = stagedFiles.filter(sf => sf.file.type.startsWith("image/"));
     
-    if (isBasicFilter) {
+    const fulfillingPending = imageFiles.length > 0 && pendingFilter !== null;
+
+    if (isBasicFilter || fulfillingPending) {
+      const activeCommand = isBasicFilter ? finalInput : pendingFilter!;
+
       if (imageFiles.length === 0) {
+        setPendingFilter(activeCommand);
         const userMsg: StoredMessage = { id: generateId(), role: "user", content: finalInput };
         const assistantMsg: StoredMessage = { id: generateId(), role: "assistant", content: "Please attach an image first using 📎 so I can process your edit request." };
         
@@ -1518,6 +1524,7 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
         return;
       }
 
+      setPendingFilter(null);
       const targetFile = imageFiles[0].file;
       const localBlobUrl = URL.createObjectURL(targetFile);
       const userMsgContent = `[Attached image: ${targetFile.name}|${localBlobUrl}]\n\n${finalInput}`;
@@ -1537,12 +1544,12 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
       setIsLoading(true);
       
       try {
-        const processedUrl = await processImageFilter(targetFile, finalInput);
+        const processedUrl = await processImageFilter(targetFile, activeCommand);
         const assistantId = generateId();
         const assistantMsg: StoredMessage = {
           id: assistantId,
           role: "assistant",
-          content: `[GENERATED_IMAGE]:${processedUrl}\n\n*Locally processed image using filter: ${finalInput}*`,
+          content: `[GENERATED_IMAGE]:${processedUrl}\n\n*Locally processed image using filter: ${activeCommand}*`,
         };
         const finalMessages = [...newMessages, assistantMsg];
         setMessages(finalMessages);
@@ -1555,6 +1562,9 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
         setIsLoading(false);
       }
       return;
+    } else if (pendingFilter !== null) {
+      // Clear pending filter if the user changed their mind and sent a normal message
+      setPendingFilter(null);
     }
     // --- END LOCAL PROCESSING ---
 
