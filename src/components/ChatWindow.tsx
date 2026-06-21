@@ -641,6 +641,25 @@ function processImageFilter(imageFile: File, command: string): Promise<string> {
           } else if (cmd.includes("blur")) {
             ctx.filter = "blur(10px)";
             ctx.drawImage(img, 0, 0, w, h);
+          } else if (cmd.includes("invert")) {
+            ctx.filter = "invert(100%)";
+            ctx.drawImage(img, 0, 0, w, h);
+          } else if (cmd.includes("sepia")) {
+            ctx.filter = "sepia(100%)";
+            ctx.drawImage(img, 0, 0, w, h);
+          } else if (cmd.includes("brighten") || cmd.includes("brighter")) {
+            ctx.filter = "brightness(150%)";
+            ctx.drawImage(img, 0, 0, w, h);
+          } else if (cmd.includes("darken") || cmd.includes("darker")) {
+            ctx.filter = "brightness(50%)";
+            ctx.drawImage(img, 0, 0, w, h);
+          } else if (cmd.includes("flip")) {
+            ctx.translate(w, 0);
+            ctx.scale(-1, 1);
+            ctx.drawImage(img, 0, 0, w, h);
+          } else if (cmd.includes("sharpen")) {
+            ctx.filter = "contrast(150%)";
+            ctx.drawImage(img, 0, 0, w, h);
           } else if (cmd.includes("pixelate")) {
             ctx.imageSmoothingEnabled = false;
             const pixelSize = 15;
@@ -1484,10 +1503,21 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
 
     // --- LOCAL IMAGE PROCESSING INTERCEPTOR ---
     const lowerInput = finalInput.toLowerCase();
-    const isBasicFilter = ["pixelate", "blur", "crop", "resize", "shrink", "smaller", "grayscale", "black and white", "rotate"].some(f => lowerInput.includes(f));
+    const isBasicFilter = ["pixelate", "blur", "crop", "resize", "shrink", "smaller", "grayscale", "black and white", "rotate", "invert", "sharpen", "brighten", "darken", "flip", "sepia"].some(f => lowerInput.includes(f));
     const imageFiles = stagedFiles.filter(sf => sf.file.type.startsWith("image/"));
     
-    if (isBasicFilter && imageFiles.length > 0) {
+    if (isBasicFilter) {
+      if (imageFiles.length === 0) {
+        const userMsg: StoredMessage = { id: generateId(), role: "user", content: finalInput };
+        const assistantMsg: StoredMessage = { id: generateId(), role: "assistant", content: "Please attach an image first using 📎 so I can process your edit request." };
+        
+        const finalMessages = [...messages, userMsg, assistantMsg];
+        setMessages(finalMessages);
+        setInput("");
+        if (textareaRef.current) textareaRef.current.style.height = "auto";
+        return;
+      }
+
       const targetFile = imageFiles[0].file;
       const localBlobUrl = URL.createObjectURL(targetFile);
       const userMsgContent = `[Attached image: ${targetFile.name}|${localBlobUrl}]\n\n${finalInput}`;
