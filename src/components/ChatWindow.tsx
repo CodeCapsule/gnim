@@ -624,9 +624,10 @@ const MessageBubble = React.memo(function MessageBubble({
     let displayText = message.content;
     let attachedFileName: string | null = null;
     let attachedFileIsImage = false;
+    let attachedFileUrl: string | null = null;
 
     const fileMatch = message.content.match(/^\[Attached file: (.+?)\]/);
-    const imageMatch = message.content.match(/^\[Attached image: (.+?)\]/);
+    const imageMatch = message.content.match(/^\[Attached image: ([^|\]]+)(?:\|([^\]]+))?\]/);
 
     if (fileMatch) {
       attachedFileName = fileMatch[1];
@@ -635,6 +636,7 @@ const MessageBubble = React.memo(function MessageBubble({
     } else if (imageMatch) {
       attachedFileName = imageMatch[1];
       attachedFileIsImage = true;
+      attachedFileUrl = imageMatch[2] || null;
       displayText = message.content.replace(/^\[Attached image: .+?\]\n?\n?/, "").trim();
     }
 
@@ -660,8 +662,10 @@ const MessageBubble = React.memo(function MessageBubble({
         <div className="flex flex-col items-end gap-2 max-w-[85%] md:max-w-[75%]">
           {attachedFileName && (
             <div className={`flex items-center gap-3 px-4 py-2.5 rounded-2xl border ${fileStyle!.bg} ${fileStyle!.border} w-full`}>
-              <div className={`flex-shrink-0 w-9 h-9 rounded-xl ${fileStyle!.bg} ${fileStyle!.border} border flex items-center justify-center text-lg`}>
-                {attachedFileIsImage ? "🖼️" : fileStyle!.icon}
+              <div className={`flex-shrink-0 w-12 h-12 rounded-xl ${fileStyle!.bg} ${fileStyle!.border} border flex items-center justify-center text-lg overflow-hidden`}>
+                {attachedFileIsImage && attachedFileUrl ? (
+                  <img src={attachedFileUrl} alt="uploaded" className="w-full h-full object-cover" />
+                ) : attachedFileIsImage ? "🖼️" : fileStyle!.icon}
               </div>
               <div className="flex flex-col min-w-0 flex-1">
                 <span className={`text-[13px] font-semibold ${fileStyle!.text} truncate`}>{attachedFileName}</span>
@@ -1412,7 +1416,9 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
       for (const sf of stagedFiles) {
         const { file, preview } = sf;
         if (file.type.startsWith("image/")) {
-          filesText += `[Attached image: ${file.name}]\n\n`;
+          // Use a local blob URL to render the image in the chat history without blowing up localStorage limits
+          const localBlobUrl = URL.createObjectURL(file);
+          filesText += `[Attached image: ${file.name}|${localBlobUrl}]\n\n`;
           attachmentUrls.push(preview);
         } else {
           const truncated = preview.length > 15000 ? preview.slice(0, 15000) + "\n\n[File truncated — too large to show fully]" : preview;
