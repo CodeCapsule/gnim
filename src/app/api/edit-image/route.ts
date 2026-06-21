@@ -14,17 +14,17 @@ export async function POST(req: Request) {
     const lowerMsg = message.toLowerCase();
     
     // AI INTENT DETECTION (Stubbed for future integration)
-    const isAiEdit = ['make it look like', 'change the style', 'add', 'remove', 'background'].some(kw => lowerMsg.includes(kw));
+    const isAiEdit = ["modify", "edit", "change", "remove", "add", "replace", "enhance", "restyle"].some(kw => lowerMsg.includes(kw));
     
-    if (isAiEdit) {
-      return NextResponse.json({ 
-        success: false, 
-        message: '⚠️ AI-based edits (like adding objects or changing backgrounds) require Replicate or ClipDrop API keys which are not currently configured.' 
-      });
-    }
-
     // SIMPLE FILTERS INTENT DETECTION
     const isBasicFilter = ["pixelate", "blur", "crop", "resize", "shrink", "smaller", "grayscale", "black and white", "rotate", "invert", "sharpen", "brighten", "darken", "flip", "sepia"].some(f => lowerMsg.includes(f));
+
+    if (isAiEdit && !isBasicFilter) {
+      return NextResponse.json({ 
+        success: false, 
+        message: '⚠️ Advanced AI edits (like modifying content, restyling, or adding/removing objects) require Replicate or ClipDrop API keys which are not currently configured. Try a simple filter like "pixelate" or "blur" instead.' 
+      });
+    }
 
     if (!isBasicFilter) {
       return NextResponse.json({ success: false, message: "No recognized edit command found." });

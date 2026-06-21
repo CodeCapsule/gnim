@@ -1293,7 +1293,10 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
     setMessages([...newMessages, assistantPlaceholder]);
 
     // ---- IMAGE GENERATION MODE ----
-    if (selectedMode === "image") {
+    const lowerInput = userText.toLowerCase();
+    const isImageGeneration = selectedMode === "image" || ["create", "generate", "draw", "illustrate", "visualize", "design"].some(kw => lowerInput.includes(kw));
+
+    if (isImageGeneration) {
       setImageGenerating(true);
       setIsLoading(true);
       try {
@@ -1418,13 +1421,13 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
 
     // --- LOCAL IMAGE PROCESSING INTERCEPTOR ---
     const lowerInput = finalInput.toLowerCase();
-    const isBasicFilter = ["pixelate", "blur", "crop", "resize", "shrink", "smaller", "grayscale", "black and white", "rotate", "invert", "sharpen", "brighten", "darken", "flip", "sepia"].some(f => lowerInput.includes(f));
+    const isImageEdit = ["pixelate", "blur", "crop", "resize", "shrink", "smaller", "grayscale", "black and white", "rotate", "invert", "sharpen", "brighten", "darken", "flip", "sepia", "modify", "edit", "change", "remove", "add", "replace", "enhance", "restyle"].some(f => lowerInput.includes(f));
     const imageFiles = stagedFiles.filter(sf => sf.file.type.startsWith("image/"));
     
     const fulfillingPending = imageFiles.length > 0 && pendingFilter !== null;
 
-    if (isBasicFilter || fulfillingPending) {
-      const activeCommand = isBasicFilter ? finalInput : pendingFilter!;
+    if (isImageEdit || fulfillingPending) {
+      const activeCommand = isImageEdit ? finalInput : pendingFilter!;
 
       if (imageFiles.length === 0) {
         setPendingFilter(activeCommand);
