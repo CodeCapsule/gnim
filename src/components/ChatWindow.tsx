@@ -1539,7 +1539,7 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
 
   const showEmpty = messages.length === 0;
   const lastMessage = messages[messages.length - 1];
-  const showThinking = isLoading && lastMessage?.role === "user";
+  const showThinking = isLoading && lastMessage?.role === "assistant" && lastMessage.content === "";
 
   // Injects content silently into the conversation as a "tool" message,
   // then re-sends to the AI without creating a visible user message bubble.
@@ -1676,15 +1676,20 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
             </div>
           ) : (
             <div className="space-y-4">
-              {messages.map((m, i) => (
-                <MessageBubble 
-                  key={m.id} 
-                  message={m} 
-                  fetchedUrlsRef={fetchedUrlsRef}
-                  isStreaming={isLoading && i === messages.length - 1 && m.role === "assistant"}
-                  onWebContent={handleWebContent}
-                />
-              ))}
+              {messages.map((m, i) => {
+                const isPlaceholder = isLoading && i === messages.length - 1 && m.role === "assistant" && m.content === "";
+                if (isPlaceholder) return null;
+
+                return (
+                  <MessageBubble 
+                    key={m.id} 
+                    message={m} 
+                    fetchedUrlsRef={fetchedUrlsRef}
+                    isStreaming={isLoading && i === messages.length - 1 && m.role === "assistant"}
+                    onWebContent={handleWebContent}
+                  />
+                );
+              })}
               {showThinking && <ThinkingIndicator text={deepResearchEnabled ? "Deep researching" : webSearchEnabled ? "Searching the web" : "Thinking"} />}
 
               {/* Error Message Display */}
