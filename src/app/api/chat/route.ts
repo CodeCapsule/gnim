@@ -950,9 +950,41 @@ export async function POST(req: Request) {
       "Example: ```python\\nprint('hello')\\n```",
     ].join("\n");
 
+    // Transform messages into the AI SDK multi-modal format
+    const transformedMessages = messages.map((msg: any) => {
+      // If the content is already an array (multi-modal), convert it
+      if (Array.isArray(msg.content)) {
+        const parts = msg.content.map((part: any) => {
+          if (part.type === "text") {
+            return { type: "text" as const, text: part.text };
+          }
+          if (part.type === "image") {
+            const src: string = part.image ?? part.url ?? "";
+            if (src.startsWith("data:")) {
+              // Base64 data URL — extract mediaType and base64 data
+              const match = src.match(/^data:([^;]+);base64,(.+)$/);
+              if (match) {
+                return {
+                  type: "image" as const,
+                  image: Buffer.from(match[2], "base64"),
+                  mimeType: match[1] as any,
+                };
+              }
+            }
+            // Plain URL
+            return { type: "image" as const, image: new URL(src) };
+          }
+          return part;
+        });
+        return { role: msg.role, content: parts };
+      }
+      // Plain string content
+      return { role: msg.role, content: msg.content };
+    });
+
     const result = await streamText({
       model: gateway(targetModel),
-      messages,
+      messages: transformedMessages,
       system: systemPrompt,
     });
 
