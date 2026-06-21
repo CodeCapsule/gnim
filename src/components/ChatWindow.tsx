@@ -597,6 +597,73 @@ function FetchUrlWidget({
   );
 }
 
+// ---------- processImageFilter (Local Client-Side Edits) ----------
+function processImageFilter(imageFile: File, command: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return reject(new Error("No canvas context"));
+      
+      let w = img.width;
+      let h = img.height;
+      
+      const cmd = command.toLowerCase();
+      
+      if (cmd.includes("rotate")) {
+        canvas.width = h;
+        canvas.height = w;
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate(90 * Math.PI / 180);
+        ctx.drawImage(img, -w / 2, -h / 2, w, h);
+      } else {
+        canvas.width = w;
+        canvas.height = h;
+        
+        if (cmd.includes("crop")) {
+          const cropW = Math.max(1, Math.floor(w * 0.8));
+          const cropH = Math.max(1, Math.floor(h * 0.8));
+          canvas.width = cropW;
+          canvas.height = cropH;
+          const dx = (w - cropW) / 2;
+          const dy = (h - cropH) / 2;
+          ctx.drawImage(img, dx, dy, cropW, cropH, 0, 0, cropW, cropH);
+        } else if (cmd.includes("resize") || cmd.includes("shrink") || cmd.includes("smaller")) {
+          const scale = 0.5;
+          canvas.width = Math.max(1, Math.floor(w * scale));
+          canvas.height = Math.max(1, Math.floor(h * scale));
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        } else {
+          if (cmd.includes("grayscale") || cmd.includes("black and white")) {
+            ctx.filter = "grayscale(100%)";
+            ctx.drawImage(img, 0, 0, w, h);
+          } else if (cmd.includes("blur")) {
+            ctx.filter = "blur(10px)";
+            ctx.drawImage(img, 0, 0, w, h);
+          } else if (cmd.includes("pixelate")) {
+            ctx.imageSmoothingEnabled = false;
+            const pixelSize = 15;
+            const sw = Math.max(1, w / pixelSize);
+            const sh = Math.max(1, h / pixelSize);
+            ctx.drawImage(img, 0, 0, sw, sh);
+            ctx.drawImage(canvas, 0, 0, sw, sh, 0, 0, w, h);
+          } else {
+            ctx.drawImage(img, 0, 0, w, h);
+          }
+        }
+      }
+      
+      canvas.toBlob((blob) => {
+        if (!blob) return reject(new Error("Canvas toBlob failed"));
+        resolve(URL.createObjectURL(blob));
+      }, 'image/png');
+    };
+    img.onerror = () => reject(new Error("Failed to load image for processing"));
+    img.src = URL.createObjectURL(imageFile);
+  });
+}
+
 const MessageBubble = React.memo(function MessageBubble({
   message,
   isStreaming,
@@ -1414,6 +1481,52 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
 
     let finalInput = input.trim();
     let attachmentUrls: string[] = [];
+
+    // --- LOCAL IMAGE PROCESSING INTERCEPTOR ---
+    const lowerInput = finalInput.toLowerCase();
+    const isBasicFilter = ["pixelate", "blur", "crop", "resize", "shrink", "smaller", "grayscale", "black and white", "rotate"].some(f => lowerInput.includes(f));
+    const imageFiles = stagedFiles.filter(sf => sf.file.type.startsWith("image/"));
+    
+    if (isBasicFilter && imageFiles.length > 0) {
+      const targetFile = imageFiles[0].file;
+      const localBlobUrl = URL.createObjectURL(targetFile);
+      const userMsgContent = `[Attached image: ${targetFile.name}|${localBlobUrl}]\n\n${finalInput}`;
+      
+      const userMsg: StoredMessage = {
+        id: generateId(),
+        role: "user",
+        content: userMsgContent,
+      };
+      
+      const newMessages = [...messages, userMsg];
+      setMessages(newMessages);
+      setInput("");
+      setStagedFiles([]);
+      if (textareaRef.current) textareaRef.current.style.height = "auto";
+      
+      setIsLoading(true);
+      
+      try {
+        const processedUrl = await processImageFilter(targetFile, finalInput);
+        const assistantId = generateId();
+        const assistantMsg: StoredMessage = {
+          id: assistantId,
+          role: "assistant",
+          content: `[GENERATED_IMAGE]:${processedUrl}\n\n*Locally processed image using filter: ${finalInput}*`,
+        };
+        const finalMessages = [...newMessages, assistantMsg];
+        setMessages(finalMessages);
+        
+        const title = conversation?.title && conversation.title !== "New Chat" ? conversation.title : userMsg.content.slice(0, 50).trim();
+        onUpdate({ id: convoId, title, createdAt: conversation?.createdAt ?? Date.now(), messages: finalMessages });
+      } catch (err: any) {
+        setError(err.message || "Failed to process image locally.");
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+    // --- END LOCAL PROCESSING ---
 
     if (stagedFiles.length > 0) {
       let filesText = "";
