@@ -1,82 +1,93 @@
 import { NextResponse } from 'next/server';
-import Jimp from 'jimp';
+import { Jimp } from 'jimp';
+import { ImageRouter } from '@/lib/agents/ImageRouter';
 
 export async function POST(req: Request) {
   try {
     const formData = await req.formData();
     const imageFile = formData.get('image') as File | null;
     const message = formData.get('message') as string | null;
+    const conversationId = (formData.get('conversationId') as string | null) ?? 'default';
 
     if (!imageFile || !message) {
       return NextResponse.json({ success: false, message: 'Missing image or message' }, { status: 400 });
     }
 
-    const lowerMsg = message.toLowerCase();
-    
-    // AI INTENT DETECTION (Stubbed for future integration)
-    const isAiEdit = ["modify", "edit", "change", "remove", "add", "replace", "enhance", "restyle"].some(kw => lowerMsg.includes(kw));
-    
-    // SIMPLE FILTERS INTENT DETECTION
-    const isBasicFilter = ["pixelate", "blur", "crop", "resize", "shrink", "smaller", "grayscale", "black and white", "rotate", "invert", "sharpen", "brighten", "darken", "flip", "sepia"].some(f => lowerMsg.includes(f));
+    // --- Route through the multi-agent ImageRouter ---
+    const routerResult = await ImageRouter.route(message, conversationId, true);
 
-    if (isAiEdit && !isBasicFilter) {
-      return NextResponse.json({ 
-        success: false, 
-        message: '⚠️ Advanced AI edits (like modifying content, restyling, or adding/removing objects) require Replicate or ClipDrop API keys which are not currently configured. Try a simple filter like "pixelate" or "blur" instead.' 
+    if (!routerResult.editPlan) {
+      return NextResponse.json({ success: false, message: 'Could not determine edit intent.' }, { status: 400 });
+    }
+
+    const { editPlan } = routerResult;
+
+    // --- AI edits: Stub (Replicate/ClipDrop integration point) ---
+    if (editPlan.type === 'ai_inpaint' || editPlan.type === 'ai_restyle') {
+      return NextResponse.json({
+        success: false,
+        message: `⚠️ Advanced AI edit detected: "${editPlan.aiPrompt}". This requires a Replicate or ClipDrop API key. Try a simple filter like "pixelate" or "blur" instead.`,
       });
     }
 
-    if (!isBasicFilter) {
-      return NextResponse.json({ success: false, message: "No recognized edit command found." });
+    if (editPlan.type === 'unknown') {
+      return NextResponse.json({ success: false, message: 'No recognized edit command found.' });
     }
 
-    // PROCESS WITH JIMP
+    // --- Simple edits: handled by Jimp v1 ---
     const buffer = Buffer.from(await imageFile.arrayBuffer());
     const img = await Jimp.read(buffer);
 
-    if (lowerMsg.includes('pixelate')) {
-      img.pixelate(15);
-    } else if (lowerMsg.includes('blur')) {
-      img.blur(10);
-    } else if (lowerMsg.includes('grayscale') || lowerMsg.includes('black and white')) {
+    const op = editPlan.operation;
+    const params = editPlan.params as Record<string, number>;
+
+    if (op === 'pixelate') {
+      img.pixelate(params.pixelSize ?? 15);
+    } else if (op === 'blur') {
+      img.blur(params.radius ?? 10);
+    } else if (op === 'grayscale') {
       img.greyscale();
-    } else if (lowerMsg.includes('sepia')) {
+    } else if (op === 'sepia') {
       img.sepia();
-    } else if (lowerMsg.includes('invert')) {
+    } else if (op === 'invert') {
       img.invert();
-    } else if (lowerMsg.includes('brighten') || lowerMsg.includes('brighter')) {
-      img.brightness(0.5); 
-    } else if (lowerMsg.includes('darken') || lowerMsg.includes('darker')) {
-      img.brightness(-0.5);
-    } else if (lowerMsg.includes('rotate')) {
-      img.rotate(90);
-    } else if (lowerMsg.includes('flip')) {
-      img.flip(true, false);
-    } else if (lowerMsg.includes('resize') || lowerMsg.includes('shrink') || lowerMsg.includes('smaller')) {
-      img.scale(0.5);
-    } else if (lowerMsg.includes('crop')) {
-      const cropW = Math.floor(img.bitmap.width * 0.8);
-      const cropH = Math.floor(img.bitmap.height * 0.8);
-      const dx = (img.bitmap.width - cropW) / 2;
-      const dy = (img.bitmap.height - cropH) / 2;
-      img.crop(dx, dy, cropW, cropH);
-    } else if (lowerMsg.includes('sharpen')) {
+    } else if (op === 'brighten') {
+      img.brightness(params.amount ?? 0.5);
+    } else if (op === 'darken') {
+      img.brightness(params.amount ?? -0.5);
+    } else if (op === 'rotate') {
+      img.rotate(params.degrees ?? 90);
+    } else if (op === 'flip') {
+      // Jimp v1 API: object argument
+      img.flip({ horizontal: true, vertical: false });
+    } else if (op === 'resize') {
+      const newW = Math.floor(img.width * (params.scale ?? 0.5));
+      const newH = Math.floor(img.height * (params.scale ?? 0.5));
+      img.resize({ w: newW, h: newH });
+    } else if (op === 'crop') {
+      const cropW = Math.floor(img.width * 0.8);
+      const cropH = Math.floor(img.height * 0.8);
+      const dx = Math.floor((img.width - cropW) / 2);
+      const dy = Math.floor((img.height - cropH) / 2);
+      img.crop({ x: dx, y: dy, w: cropW, h: cropH });
+    } else if (op === 'sharpen') {
       img.contrast(0.5);
     }
 
-    const mime = img.getMIME();
-    const processedBuffer = await img.getBufferAsync(mime);
-    const base64 = processedBuffer.toString('base64');
-    const dataUrl = `data:${mime};base64,${base64}`;
+    // Jimp v1: output as buffer then base64
+    const outputBuffer = await img.getBuffer('image/jpeg');
+    const base64 = outputBuffer.toString('base64');
+    const dataUrl = `data:image/jpeg;base64,${base64}`;
 
-    return NextResponse.json({ 
-      success: true, 
-      image: dataUrl, 
-      message: `*Backend processed image using filter: ${message}*` 
+    return NextResponse.json({
+      success: true,
+      image: dataUrl,
+      message: `*Image processed: applied ${op} filter.*`,
+      warnings: routerResult.warnings,
     });
 
   } catch (error: any) {
-    console.error("Image processing error:", error);
+    console.error('Image processing error:', error);
     return NextResponse.json({ success: false, message: error.message || 'Image processing failed' }, { status: 500 });
   }
 }

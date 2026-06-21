@@ -1,44 +1,51 @@
-import OpenAI from "openai";
-
-export const runtime = "edge";
-
-const client = new OpenAI({
-  apiKey: process.env.AI_GATEWAY_API_KEY,
-  baseURL: "https://ai-gateway.vercel.sh/v1",
-});
+import { ImageRouter } from "@/lib/agents/ImageRouter";
+import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
-  if (!process.env.AI_GATEWAY_API_KEY) {
-    return Response.json(
-      { error: "AI_GATEWAY_API_KEY is not configured." },
-      { status: 500 }
-    );
-  }
-
   try {
-    const { prompt } = await req.json();
+    const body = await req.json();
+    const { prompt, conversationId } = body;
 
     if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
-      return Response.json({ error: "Missing or invalid prompt" }, { status: 400 });
+      return NextResponse.json({ error: "Missing or invalid prompt" }, { status: 400 });
     }
 
-    if (prompt.length > 1000) {
-      return Response.json({ error: "Prompt too long (max 1000 characters)" }, { status: 400 });
+    // --- Run through the multi-agent Image Router ---
+    const routerResult = await ImageRouter.route(prompt, conversationId ?? "default", false);
+
+    // Handle character definition commands
+    if (routerResult.intent === "character_define") {
+      return NextResponse.json({
+        url: null,
+        message: `✅ Character saved! I'll remember their appearance for future images.`,
+        warnings: [],
+      });
     }
 
-    // Use Pollinations.ai for instant image generation, bypassing slow Vercel API Gateway timeouts
-    const encodedPrompt = encodeURIComponent(prompt.trim());
+    // Handle blocked prompts
+    if (routerResult.blockedReason) {
+      return NextResponse.json({ error: routerResult.blockedReason }, { status: 400 });
+    }
+
+    const finalPrompt = routerResult.finalPrompt ?? prompt.trim();
+
+    // --- Dispatch to Image Model (Pollinations.ai) ---
+    const encodedPrompt = encodeURIComponent(finalPrompt);
     const width = 1024;
-    const height = 576; // 16:9 aspect ratio as requested by user often
+    const height = 576;
     const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&nologo=true`;
 
-    return Response.json({ url });
+    // Record frame in storyboard for future scene continuity
+    ImageRouter.recordGeneration(conversationId ?? "default", finalPrompt, url);
+
+    return NextResponse.json({
+      url,
+      optimizedPrompt: finalPrompt,
+      warnings: routerResult.warnings,
+    });
   } catch (err: any) {
     const message = err?.message ?? "Unknown error";
     console.error("[generate-image] Error:", message);
-    return Response.json(
-      { error: `Image generation failed: ${message}` },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: `Image generation failed: ${message}` }, { status: 500 });
   }
 }
