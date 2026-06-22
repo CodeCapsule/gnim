@@ -24,9 +24,10 @@ const BLOCKED_TERMS = [
 const QUALITY_SIGNALS = [
   "detailed", "masterpiece", "sharp focus", "8k", "4k", "uhd",
   "cinematic", "photorealistic", "illustration", "art", "realistic",
+  "clean", "design", "typography", "professional",
 ];
 
-const MAX_PROMPT_LENGTH = 1200;
+const MAX_PROMPT_LENGTH = 2000;
 
 export class QualityVerificationAgent {
   /**

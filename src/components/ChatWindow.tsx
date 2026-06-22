@@ -1299,11 +1299,25 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
     if (isImageGeneration) {
       setImageGenerating(true);
       setIsLoading(true);
+
+      // Strip injected file/image content blocks — only keep the user's actual intent text.
+      // Attached files inject blocks like: [Attached file: name]\n\nHere is its content:\n```...```
+      // We strip those and keep only the text the user typed.
+      const stripFileBlocks = (text: string): string => {
+        // Remove [Attached file: ...] blocks with their content
+        let stripped = text.replace(/\[Attached file:[^\]]*\]\s*\n*Here is its content:\s*\n*```[\s\S]*?```\s*/g, "");
+        // Remove [Attached image: ...] references
+        stripped = stripped.replace(/\[Attached image:[^\]]*\]\s*/g, "");
+        return stripped.trim();
+      };
+
+      const imagePrompt = stripFileBlocks(userText.trim());
+
       try {
         const res = await fetch("/api/generate-image", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt: userText.trim() }),
+          body: JSON.stringify({ prompt: imagePrompt || userText.trim() }),
         });
         
         const contentType = res.headers.get("content-type");
