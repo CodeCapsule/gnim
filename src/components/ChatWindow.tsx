@@ -1445,7 +1445,32 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
 
     // --- LOCAL IMAGE PROCESSING INTERCEPTOR ---
     const lowerInput = finalInput.toLowerCase();
-    const isImageEdit = ["pixelate", "blur", "crop", "resize", "shrink", "smaller", "grayscale", "black and white", "rotate", "invert", "sharpen", "brighten", "darken", "flip", "sepia", "modify", "edit", "change", "remove", "add", "replace", "enhance", "restyle"].some(f => lowerInput.includes(f));
+    // Use whole-word matching to avoid false positives in Tagalog/other languages
+    // e.g. "add" shouldn't match inside unrelated words
+    const IMAGE_EDIT_KEYWORDS = [
+      "pixelate", "blur", "crop", "resize", "shrink", "grayscale",
+      "black and white", "rotate", "invert", "sharpen", "brighten",
+      "darken", "flip", "sepia", "modify", "restyle", "enhance",
+      // These short words require image context (file attached OR previous image exists)
+      "edit", "change", "remove", "add", "replace",
+    ];
+    // Short ambiguous words only trigger if user has a file staged or there's a generated image in chat
+    const AMBIGUOUS_KEYWORDS = ["edit", "change", "remove", "add", "replace", "smaller"];
+    const hasStagedImage = stagedFiles.some(sf => sf.file.type.startsWith("image/"));
+    const hasPreviousGeneratedImage = messages.some(
+      m => m.role === "assistant" && m.content.startsWith("[GENERATED_IMAGE]:")
+    );
+    const hasImageContext = hasStagedImage || hasPreviousGeneratedImage;
+
+    const isImageEdit = IMAGE_EDIT_KEYWORDS.some(kw => {
+      const regex = new RegExp(`\\b${kw.replace(/ /g, "\\s+")}\\b`, "i");
+      const matches = regex.test(lowerInput);
+      // For ambiguous keywords, only match if there's already image context
+      if (AMBIGUOUS_KEYWORDS.includes(kw) && matches) {
+        return hasImageContext;
+      }
+      return matches;
+    });
     const imageFiles = stagedFiles.filter(sf => sf.file.type.startsWith("image/"));
     
     const fulfillingPending = imageFiles.length > 0 && pendingFilter !== null;
