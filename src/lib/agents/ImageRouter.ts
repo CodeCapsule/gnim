@@ -25,6 +25,7 @@ export interface RouterResult {
   // For generation
   finalPrompt?: string;
   negativePrompt?: string;
+  isTextHeavy?: boolean;
   // For editing
   editPlan?: EditPlan;
   // Shared
@@ -76,10 +77,11 @@ export class ImageRouter {
 
     // Step B: Storyboard — inject scene continuation context if applicable
     const storyContext = StoryboardAgent.buildContext(conversationId);
-    
+
     // Step C: Text-to-Image — expand and enrich the prompt
+    const textHeavy = TextToImageAgent.isTextHeavy(rawRequest);
     const enrichedPrompt = TextToImageAgent.expand(prompt, storyContext || undefined);
-    const negativePrompt = TextToImageAgent.buildNegativePrompt();
+    const negativePrompt = TextToImageAgent.buildNegativePrompt(textHeavy);
 
     // Step D: Quality Verification — validate and sanitize
     const verification = QualityVerificationAgent.verify(enrichedPrompt);
@@ -99,6 +101,7 @@ export class ImageRouter {
       intent: "generate",
       finalPrompt: verification.optimizedPrompt,
       negativePrompt,
+      isTextHeavy: textHeavy,
       warnings,
     };
   }

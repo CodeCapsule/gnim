@@ -1,6 +1,17 @@
 import { ImageRouter } from "@/lib/agents/ImageRouter";
 import { NextResponse } from "next/server";
 
+/**
+ * Pollinations.ai model options:
+ * - "flux"          → Best for accuracy and text rendering (FLUX.1-schnell)
+ * - "flux-realism"  → Best for photorealistic images
+ * - "turbo"         → Fast SDXL (creative, but poor at text)
+ * - "gptimage"      → Experimental GPT-based model
+ *
+ * For text-heavy prompts (business cards, certificates, posters),
+ * we use "flux" with enhance=false and a portrait/card aspect ratio.
+ * For creative imagery, we use "flux-realism" with enhance=true.
+ */
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -28,12 +39,34 @@ export async function POST(req: Request) {
     }
 
     const finalPrompt = routerResult.finalPrompt ?? prompt.trim();
+    const isTextHeavy = routerResult.isTextHeavy ?? false;
 
-    // --- Dispatch to Image Model (Pollinations.ai) ---
+    // --- Select model and dimensions based on prompt type ---
+    let model: string;
+    let width: number;
+    let height: number;
+    let enhance: boolean;
+
+    if (isTextHeavy) {
+      // Business cards, certificates, posters, etc.
+      // Use FLUX with enhance=false (enhancement distorts text)
+      // Use landscape card dimensions for business cards
+      const isBusinessCard = /business card|id card|card/i.test(prompt);
+      model = "flux";
+      width = isBusinessCard ? 1050 : 1024;
+      height = isBusinessCard ? 600 : 768;
+      enhance = false;
+    } else {
+      // Creative/artistic images — use flux-realism for photorealistic quality
+      model = "flux-realism";
+      width = 1024;
+      height = 576;
+      enhance = true;
+    }
+
+    // --- Dispatch to Pollinations.ai ---
     const encodedPrompt = encodeURIComponent(finalPrompt);
-    const width = 1024;
-    const height = 576;
-    const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&nologo=true`;
+    const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&model=${model}&enhance=${enhance}&nologo=true&seed=${Math.floor(Math.random() * 1000000)}`;
 
     // Record frame in storyboard for future scene continuity
     ImageRouter.recordGeneration(conversationId ?? "default", finalPrompt, url);
@@ -41,6 +74,8 @@ export async function POST(req: Request) {
     return NextResponse.json({
       url,
       optimizedPrompt: finalPrompt,
+      isTextHeavy,
+      model,
       warnings: routerResult.warnings,
     });
   } catch (err: any) {

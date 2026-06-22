@@ -5,18 +5,46 @@
  * model-optimized prompt for FLUX, DALL-E, or similar image models.
  */
 
+/** Prompts that contain specific text/layout that must be rendered accurately */
+const TEXT_HEAVY_KEYWORDS = [
+  "business card", "certificate", "poster", "banner", "flyer", "invoice",
+  "letterhead", "id card", "badge", "label", "ticket", "receipt", "menu",
+  "logo", "sign", "text that says", "words", "written", "typed", "font",
+  "email", "phone number", "address", "contact",
+];
+
 export class TextToImageAgent {
   /**
+   * Detects whether the prompt is a text/design-heavy request that requires
+   * accurate text rendering (e.g. business cards, certificates, posters).
+   */
+  static isTextHeavy(rawPrompt: string): boolean {
+    const lower = rawPrompt.toLowerCase();
+    return TEXT_HEAVY_KEYWORDS.some(kw => lower.includes(kw));
+  }
+
+  /**
    * Expands a simple user request into an optimized generation prompt.
-   * Uses a structured enrichment pipeline:
-   *   1. Subject description
-   *   2. Style/medium
-   *   3. Lighting/mood
-   *   4. Compositional details
-   *   5. Technical quality tags
+   * For text-heavy prompts (e.g. business cards), skips style/lighting enrichment
+   * to avoid distorting the layout, and instead focuses on clean rendering.
    */
   static expand(rawPrompt: string, context?: string): string {
     const lower = rawPrompt.toLowerCase();
+
+    // TEXT-HEAVY PROMPTS: Don't add artistic enrichments — they confuse the model
+    // and produce garbled text. Instead, guide it toward clean flat design.
+    if (this.isTextHeavy(rawPrompt)) {
+      let structured = rawPrompt.trim();
+
+      // Inject storyboard context if available
+      if (context) {
+        structured = `${structured}, ${context}`;
+      }
+
+      // Add clean design tags instead of artistic ones
+      structured += ", clean flat design, crisp typography, perfect legible text, professional layout, white background, high resolution, sharp edges, no artistic distortion";
+      return structured;
+    }
 
     // Detect style hints already in the prompt
     const hasStyle = /oil paint|watercolor|anime|pixel art|photo|realistic|3d render|sketch|illustration|cinematic|neon|retro|vintage|surreal/i.test(rawPrompt);
@@ -61,17 +89,16 @@ export class TextToImageAgent {
 
   /**
    * Builds the negative prompt to suppress common issues.
+   * For text-heavy prompts, removes "text" from the negative list.
    */
-  static buildNegativePrompt(): string {
-    return [
+  static buildNegativePrompt(isTextHeavy = false): string {
+    const base = [
       "blurry",
       "low quality",
       "pixelated",
       "jpeg artifacts",
       "watermark",
       "signature",
-      "text",
-      "logo",
       "extra limbs",
       "deformed hands",
       "bad anatomy",
@@ -80,6 +107,16 @@ export class TextToImageAgent {
       "mutated",
       "disfigured",
       "out of frame",
-    ].join(", ");
+    ];
+
+    if (!isTextHeavy) {
+      // For non-text images, suppress unwanted text/logos
+      base.push("text", "logo");
+    } else {
+      // For text-heavy images, suppress garbling
+      base.push("distorted text", "unreadable", "misspelled", "garbled", "artistic distortion", "painterly");
+    }
+
+    return base.join(", ");
   }
 }
