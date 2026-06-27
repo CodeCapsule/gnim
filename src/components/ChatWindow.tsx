@@ -1445,8 +1445,13 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
 
     // --- LOCAL IMAGE PROCESSING INTERCEPTOR ---
     const lowerInput = finalInput.toLowerCase();
+
+    // GUARD: If the message is clearly a NEW image generation request, never intercept it as an edit.
+    // Long prompts (>200 chars) or prompts starting with generation verbs are generation, not edits.
+    const GENERATION_INTENT_REGEX = /^(create|generate|make|draw|design|illustrate|visualize|render|produce|paint|show me|imagine|please generate|please create|please make|gumawa|igawa|gawa ng|mag-generate|mag-draw)/i;
+    const isGenerationIntent = GENERATION_INTENT_REGEX.test(finalInput.trim()) || finalInput.trim().length > 200;
+
     // Use whole-word matching to avoid false positives in Tagalog/other languages
-    // e.g. "add" shouldn't match inside unrelated words
     const IMAGE_EDIT_KEYWORDS = [
       "pixelate", "blur", "crop", "resize", "shrink", "grayscale",
       "black and white", "rotate", "invert", "sharpen", "brighten",
@@ -1462,7 +1467,7 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
     );
     const hasImageContext = hasStagedImage || hasPreviousGeneratedImage;
 
-    const isImageEdit = IMAGE_EDIT_KEYWORDS.some(kw => {
+    const isImageEdit = !isGenerationIntent && IMAGE_EDIT_KEYWORDS.some(kw => {
       const regex = new RegExp(`\\b${kw.replace(/ /g, "\\s+")}\\b`, "i");
       const matches = regex.test(lowerInput);
       // For ambiguous keywords, only match if there's already image context
