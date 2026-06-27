@@ -33,6 +33,11 @@ const SIMPLE_EDIT_KEYWORDS: Record<string, string> = {
   resize: "resize",
   shrink: "resize",
   smaller: "resize",
+  text: "text",
+  write: "text",
+  put: "text",
+  caption: "text",
+  overlay: "text",
 };
 
 const AI_INPAINT_KEYWORDS = ["remove", "erase", "delete", "replace", "fill"];
@@ -51,7 +56,7 @@ export class ImageEditingAgent {
         return {
           type: "simple",
           operation,
-          params: this.buildSimpleParams(operation, lower),
+          params: this.buildSimpleParams(operation, message),
         };
       }
     }
@@ -83,7 +88,8 @@ export class ImageEditingAgent {
     return { type: "unknown", operation: "none", params: {} };
   }
 
-  private static buildSimpleParams(operation: string, lower: string): Record<string, unknown> {
+  private static buildSimpleParams(operation: string, message: string): Record<string, unknown> {
+    const lower = message.toLowerCase();
     switch (operation) {
       case "pixelate":
         return { pixelSize: 15 };
@@ -100,6 +106,16 @@ export class ImageEditingAgent {
       }
       case "resize":
         return { scale: 0.5 };
+      case "text": {
+        // Try to extract text inside quotes first
+        const quoteMatch = message.match(/["']([^"']+)["']/);
+        if (quoteMatch) {
+          return { text: quoteMatch[1] };
+        }
+        // Fallback: strip command words and use the rest
+        const stripped = message.replace(/^(put|write|add|overlay|caption)\s+(text|dialogue|words)?\s*(in|on|to)?\s*(the)?\s*(image|picture|generated image)?/i, "").trim();
+        return { text: stripped || "Sample Text" };
+      }
       default:
         return {};
     }

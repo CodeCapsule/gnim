@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Jimp } from 'jimp';
+import { loadFont } from 'jimp';
+import { SANS_32_WHITE, SANS_16_WHITE } from 'jimp/fonts';
 import { ImageRouter } from '@/lib/agents/ImageRouter';
 
 export async function POST(req: Request) {
@@ -22,12 +24,26 @@ export async function POST(req: Request) {
 
     const { editPlan } = routerResult;
 
-    // --- AI edits: Stub (Replicate/ClipDrop integration point) ---
+    // --- AI edits: forward to GPT-Image-1 route ---
     if (editPlan.type === 'ai_inpaint' || editPlan.type === 'ai_restyle') {
-      return NextResponse.json({
-        success: false,
-        message: `⚠️ Advanced AI edit detected: "${editPlan.aiPrompt}". This requires a Replicate or ClipDrop API key. Try a simple filter like "pixelate" or "blur" instead.`,
+      const aiFormData = new FormData();
+      aiFormData.append('image', imageFile);
+      aiFormData.append('prompt', editPlan.aiPrompt ?? message);
+
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000';
+      const aiRes = await fetch(`${baseUrl}/api/ai-edit-image`, {
+        method: 'POST',
+        body: aiFormData,
       });
+      const aiData = await aiRes.json();
+      if (aiData.success) {
+        return NextResponse.json({
+          success: true,
+          image: aiData.image,
+          message: `*AI edit applied: "${editPlan.aiPrompt ?? message}"*`,
+        });
+      }
+      return NextResponse.json({ success: false, message: aiData.message ?? 'AI edit failed.' });
     }
 
     if (editPlan.type === 'unknown') {
@@ -39,7 +55,7 @@ export async function POST(req: Request) {
     const img = await Jimp.read(buffer);
 
     const op = editPlan.operation;
-    const params = editPlan.params as Record<string, number>;
+    const params = editPlan.params as Record<string, any>;
 
     if (op === 'pixelate') {
       img.pixelate(params.pixelSize ?? 15);
@@ -58,7 +74,6 @@ export async function POST(req: Request) {
     } else if (op === 'rotate') {
       img.rotate(params.degrees ?? 90);
     } else if (op === 'flip') {
-      // Jimp v1 API: object argument
       img.flip({ horizontal: true, vertical: false });
     } else if (op === 'resize') {
       const newW = Math.floor(img.width * (params.scale ?? 0.5));
@@ -72,6 +87,15 @@ export async function POST(req: Request) {
       img.crop({ x: dx, y: dy, w: cropW, h: cropH });
     } else if (op === 'sharpen') {
       img.contrast(0.5);
+    } else if (op === 'text') {
+      // Jimp bitmap font text overlay
+      const textContent = (params.text as string) || 'Text';
+      const font = textContent.length > 20
+        ? await loadFont(SANS_16_WHITE)
+        : await loadFont(SANS_32_WHITE);
+      const x = 10;
+      const y = img.height - (textContent.length > 20 ? 40 : 60);
+      img.print({ font, x, y, text: textContent, maxWidth: img.width - 20 });
     }
 
     // Jimp v1: output as buffer then base64
@@ -82,7 +106,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       image: dataUrl,
-      message: `*Image processed: applied ${op} filter.*`,
+      message: `*Image processed: applied ${op}.*`,
       warnings: routerResult.warnings,
     });
 

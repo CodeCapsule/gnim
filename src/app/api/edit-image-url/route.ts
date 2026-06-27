@@ -1,15 +1,16 @@
 import { NextResponse } from 'next/server';
 import { Jimp } from 'jimp';
+import { loadFont } from 'jimp';
+import { SANS_32_WHITE, SANS_16_WHITE } from 'jimp/fonts';
 import { ImageRouter } from '@/lib/agents/ImageRouter';
 
 /**
  * /api/edit-image-url
- * Accepts a public image URL (e.g. from Pollinations.ai) and a message,
- * fetches the image, applies the requested filter using Jimp, and returns
- * the result as a base64 data URL.
  *
- * This lets users say "add fire" or "make it darker" right after image
- * generation without needing to re-upload the image.
+ * Accepts a public image URL (e.g., from Pollinations.ai) and a message.
+ * - Simple filters (blur, grayscale, etc.) → Jimp
+ * - Text overlay → Jimp bitmap font
+ * - AI edits (remove, replace, restyle, add object) → forwarded to /api/ai-edit-image (GPT-Image-1)
  */
 export async function POST(req: Request) {
   try {
@@ -33,30 +34,47 @@ export async function POST(req: Request) {
 
     const { editPlan } = routerResult;
 
-    // --- AI edits: Stub ---
+    // --- Fetch image from URL first (needed for all paths) ---
+    const fetchRes = await fetch(imageUrl);
+    if (!fetchRes.ok) {
+      return NextResponse.json(
+        { success: false, message: `Failed to fetch image from URL: ${fetchRes.statusText}` },
+        { status: 502 }
+      );
+    }
+    const arrayBuffer = await fetchRes.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    // --- AI edits: forward to /api/ai-edit-image (GPT-Image-1) ---
     if (editPlan.type === 'ai_inpaint' || editPlan.type === 'ai_restyle') {
-      return NextResponse.json({
-        success: false,
-        message: `⚠️ Advanced AI edit detected: "${editPlan.aiPrompt}". This requires a Replicate or ClipDrop API key. Try a simple filter like "pixelate", "blur", or "darken" instead.`,
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000';
+      const aiRes = await fetch(`${baseUrl}/api/ai-edit-image`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageUrl,
+          prompt: editPlan.aiPrompt ?? message,
+        }),
       });
+      const aiData = await aiRes.json();
+      if (aiData.success) {
+        return NextResponse.json({
+          success: true,
+          image: aiData.image,
+          message: `*AI edit applied: "${editPlan.aiPrompt ?? message}"*`,
+        });
+      }
+      return NextResponse.json({ success: false, message: aiData.message ?? 'AI edit failed.' });
     }
 
     if (editPlan.type === 'unknown') {
       return NextResponse.json({ success: false, message: 'No recognized edit command found.' });
     }
 
-    // --- Fetch the image from URL ---
-    const fetchRes = await fetch(imageUrl);
-    if (!fetchRes.ok) {
-      return NextResponse.json({ success: false, message: `Failed to fetch image from URL: ${fetchRes.statusText}` }, { status: 502 });
-    }
-    const arrayBuffer = await fetchRes.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    // --- Apply Jimp v1 filter ---
+    // --- Simple edits: Jimp v1 ---
     const img = await Jimp.read(buffer);
     const op = editPlan.operation;
-    const params = editPlan.params as Record<string, number>;
+    const params = editPlan.params as Record<string, any>;
 
     if (op === 'pixelate') {
       img.pixelate(params.pixelSize ?? 15);
@@ -83,9 +101,23 @@ export async function POST(req: Request) {
     } else if (op === 'crop') {
       const cropW = Math.floor(img.width * 0.8);
       const cropH = Math.floor(img.height * 0.8);
-      img.crop({ x: Math.floor((img.width - cropW) / 2), y: Math.floor((img.height - cropH) / 2), w: cropW, h: cropH });
+      img.crop({
+        x: Math.floor((img.width - cropW) / 2),
+        y: Math.floor((img.height - cropH) / 2),
+        w: cropW,
+        h: cropH,
+      });
     } else if (op === 'sharpen') {
       img.contrast(0.5);
+    } else if (op === 'text') {
+      // Jimp bitmap font text overlay
+      const textContent = (params.text as string) || 'Text';
+      const font = textContent.length > 20
+        ? await loadFont(SANS_16_WHITE)
+        : await loadFont(SANS_32_WHITE);
+      const x = 10;
+      const y = img.height - (textContent.length > 20 ? 40 : 60);
+      img.print({ font, x, y, text: textContent, maxWidth: img.width - 20 });
     }
 
     const outputBuffer = await img.getBuffer('image/jpeg');
@@ -95,12 +127,15 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       image: dataUrl,
-      message: `*Applied ${op} filter to the previous image.*`,
+      message: `*Applied ${op} to the previous image.*`,
       warnings: routerResult.warnings,
     });
 
   } catch (error: any) {
-    console.error('edit-image-url error:', error);
-    return NextResponse.json({ success: false, message: error.message || 'Image processing failed' }, { status: 500 });
+    console.error('[edit-image-url] Error:', error);
+    return NextResponse.json(
+      { success: false, message: error.message || 'Image processing failed' },
+      { status: 500 }
+    );
   }
 }

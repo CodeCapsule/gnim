@@ -1450,12 +1450,12 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
     const IMAGE_EDIT_KEYWORDS = [
       "pixelate", "blur", "crop", "resize", "shrink", "grayscale",
       "black and white", "rotate", "invert", "sharpen", "brighten",
-      "darken", "flip", "sepia", "modify", "restyle", "enhance",
+      "darken", "flip", "sepia", "restyle",
       // These short words require image context (file attached OR previous image exists)
-      "edit", "change", "remove", "add", "replace",
+      "edit", "change", "remove", "add", "replace", "modify", "enhance", "put", "write", "caption", "text", "overlay"
     ];
     // Short ambiguous words only trigger if user has a file staged or there's a generated image in chat
-    const AMBIGUOUS_KEYWORDS = ["edit", "change", "remove", "add", "replace", "smaller"];
+    const AMBIGUOUS_KEYWORDS = ["edit", "change", "remove", "add", "replace", "smaller", "modify", "enhance", "put", "write", "caption", "text", "overlay"];
     const hasStagedImage = stagedFiles.some(sf => sf.file.type.startsWith("image/"));
     const hasPreviousGeneratedImage = messages.some(
       m => m.role === "assistant" && m.content.startsWith("[GENERATED_IMAGE]:")
