@@ -1476,12 +1476,28 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
       }
       return matches;
     });
+
+    // CONTEXTUAL EDIT DETECTION: Natural language like "give him a glass of water",
+    // "make her smile", "put a hat on him" when there's a previous generated image.
+    const CONTEXTUAL_EDIT_PATTERNS = [
+      /\bgive (him|her|it|them|the (man|woman|person|character|guy|girl))\b/i,
+      /\bmake (him|her|it|them|the (man|woman|person|character|guy|girl))\b/i,
+      /\bput (a|an|some|the) .{1,30} (on|in|around|near|beside) (him|her|it|them)\b/i,
+      /\b(dress|clothe|style|give) (him|her|it|them|the)\b/i,
+      /\bchange (his|her|its|their)\b/i,
+      /\bmake (the )?(background|sky|floor|wall)\b/i,
+      /\badd (a|an|some|the) .{1,30} (to|on|in|around|next to|beside) (the |him|her|it|them)?\b/i,
+      /\b(remove|erase|delete) (the|a|an|his|her)\b/i,
+    ];
+    const isContextualEdit = hasImageContext && !isGenerationIntent &&
+      CONTEXTUAL_EDIT_PATTERNS.some(p => p.test(finalInput));
+
     const imageFiles = stagedFiles.filter(sf => sf.file.type.startsWith("image/"));
     
     const fulfillingPending = imageFiles.length > 0 && pendingFilter !== null;
 
-    if (isImageEdit || fulfillingPending) {
-      const activeCommand = isImageEdit ? finalInput : pendingFilter!;
+    if (isImageEdit || isContextualEdit || fulfillingPending) {
+      const activeCommand = fulfillingPending ? pendingFilter! : finalInput;
 
       // Check if there's a file attached
       if (imageFiles.length === 0) {
