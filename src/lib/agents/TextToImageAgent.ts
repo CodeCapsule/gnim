@@ -11,6 +11,10 @@ const TEXT_HEAVY_KEYWORDS = [
   "letterhead", "id card", "badge", "label", "ticket", "receipt", "menu",
   "logo", "sign", "text that says", "words", "written", "typed", "font",
   "email", "phone number", "address", "contact",
+  // Product labels — brand names on packaging get garbled by flux-realism
+  "holding a bottle", "holding a container", "holding a can", "holding a box",
+  "holding a product", "holding a jar", "product label", "brand name",
+  "whey protein", "optimum nutrition", "supplement", "energy drink",
 ];
 
 export class TextToImageAgent {
@@ -59,8 +63,12 @@ export class TextToImageAgent {
     }
 
     // Auto-add missing style if none detected
+    const isPerson = lower.includes("person") || lower.includes("portrait") || lower.includes("man") || lower.includes("woman") || lower.includes("male") || lower.includes("female") || lower.includes("human") || lower.includes("filipino");
     if (!hasStyle) {
-      if (lower.includes("character") || lower.includes("person") || lower.includes("portrait")) {
+      if (isPerson) {
+        // Photorealistic human: avoid uncanny valley / CGI look
+        enriched += ", photorealistic, natural skin texture, visible pores, candid photo, DSLR photography, unretouched";
+      } else if (lower.includes("character")) {
         enriched += ", cinematic portrait, photorealistic";
       } else if (lower.includes("landscape") || lower.includes("scene") || lower.includes("world")) {
         enriched += ", epic landscape, cinematic wide shot";
@@ -91,7 +99,7 @@ export class TextToImageAgent {
    * Builds the negative prompt to suppress common issues.
    * For text-heavy prompts, removes "text" from the negative list.
    */
-  static buildNegativePrompt(isTextHeavy = false): string {
+  static buildNegativePrompt(isTextHeavy = false, isPerson = false): string {
     const base = [
       "blurry",
       "low quality",
@@ -108,6 +116,16 @@ export class TextToImageAgent {
       "disfigured",
       "out of frame",
     ];
+
+    if (isPerson) {
+      // Suppress the uncanny/hallucinated look for human subjects
+      base.push(
+        "plastic skin", "airbrushed", "waxy texture", "over-smoothed",
+        "robotic movement", "stiff face", "CGI look", "beauty filter",
+        "studio perfection", "uncanny valley", "3D render", "mannequin",
+        "artificial", "overly polished"
+      );
+    }
 
     if (!isTextHeavy) {
       // For non-text images, suppress unwanted text/logos

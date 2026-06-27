@@ -40,6 +40,7 @@ export async function POST(req: Request) {
 
     const finalPrompt = routerResult.finalPrompt ?? prompt.trim();
     const isTextHeavy = routerResult.isTextHeavy ?? false;
+    const isPerson = /\b(person|man|woman|male|female|human|portrait|filipino|people|guy|girl|model|actor)\b/i.test(finalPrompt);
 
     // --- Select model and dimensions based on prompt type ---
     let model: string;
@@ -48,9 +49,8 @@ export async function POST(req: Request) {
     let enhance: boolean;
 
     if (isTextHeavy) {
-      // Business cards, certificates, posters, etc.
+      // Business cards, certificates, posters, product labels, etc.
       // Use FLUX with enhance=false (enhancement distorts text)
-      // Use landscape card dimensions for business cards
       const isBusinessCard = /business card|id card|card/i.test(prompt);
       model = "flux";
       width = isBusinessCard ? 1050 : 1024;
@@ -59,14 +59,17 @@ export async function POST(req: Request) {
     } else {
       // Creative/artistic images — use flux-realism for photorealistic quality
       model = "flux-realism";
-      width = 1024;
-      height = 576;
+      width = isPerson ? 768 : 1024;   // Portrait ratio for people
+      height = isPerson ? 1024 : 576;  // Taller for portraits
       enhance = true;
     }
 
     // --- Dispatch to Pollinations.ai ---
+    const { TextToImageAgent } = await import("@/lib/agents/TextToImageAgent");
+    const negativePrompt = TextToImageAgent.buildNegativePrompt(isTextHeavy, isPerson);
     const encodedPrompt = encodeURIComponent(finalPrompt);
-    const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&model=${model}&enhance=${enhance}&nologo=true&seed=${Math.floor(Math.random() * 1000000)}`;
+    const encodedNeg = encodeURIComponent(negativePrompt);
+    const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&model=${model}&enhance=${enhance}&nologo=true&negative=${encodedNeg}&seed=${Math.floor(Math.random() * 1000000)}`;
 
     // Record frame in storyboard for future scene continuity
     ImageRouter.recordGeneration(conversationId ?? "default", finalPrompt, url);
