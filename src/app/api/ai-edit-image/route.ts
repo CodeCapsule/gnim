@@ -1,18 +1,25 @@
-import { experimental_generateImage as generateImage, generateText } from 'ai';
+import OpenAI from 'openai';
+import { generateText } from 'ai';
 import { createGateway } from '@ai-sdk/gateway';
 import { NextRequest, NextResponse } from 'next/server';
+import { toFile } from 'openai';
 
 const gateway = createGateway({
   apiKey: process.env.AI_GATEWAY_API_KEY ?? '',
 });
 
+// OpenAI SDK for image editing (images.edit endpoint)
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY ?? process.env.AI_GATEWAY_API_KEY ?? '',
+});
+
 /**
  * /api/ai-edit-image
  *
- * AI-powered image editing using OpenAI gpt-image-1 via the AI Gateway.
+ * AI-powered image editing using OpenAI gpt-image-1 images.edit endpoint.
  * Accepts either:
- *   - FormData with `image` (File) + `prompt` (string)       — for uploaded images
- *   - JSON body  with `imageUrl` (string) + `prompt` (string) — for previously generated images
+ *   - FormData with `image` (File) + `prompt` (string)       — uploaded images
+ *   - JSON body  with `imageUrl` (string) + `prompt` (string) — previously generated images
  *
  * Returns: { success: true, image: "data:image/png;base64,..." }
  */
@@ -21,6 +28,7 @@ export async function POST(req: NextRequest) {
     const contentType = req.headers.get('content-type') ?? '';
     let prompt = '';
     let imageBuffer: Buffer | null = null;
+    let imageMimeType = 'image/png';
 
     // --- Accept both FormData (uploaded file) and JSON (imageUrl) ---
     if (contentType.includes('multipart/form-data')) {
@@ -30,6 +38,7 @@ export async function POST(req: NextRequest) {
       if (!imageFile) {
         return NextResponse.json({ success: false, message: 'Missing image file.' }, { status: 400 });
       }
+      imageMimeType = imageFile.type || 'image/png';
       imageBuffer = Buffer.from(await imageFile.arrayBuffer());
     } else {
       const body = await req.json();
@@ -38,12 +47,19 @@ export async function POST(req: NextRequest) {
       if (!imageUrl) {
         return NextResponse.json({ success: false, message: 'Missing imageUrl.' }, { status: 400 });
       }
-      // Fetch the image from URL (e.g., from Pollinations)
-      const fetchRes = await fetch(imageUrl);
-      if (!fetchRes.ok) {
-        return NextResponse.json({ success: false, message: `Failed to fetch image: ${fetchRes.statusText}` }, { status: 502 });
+      // Fetch the image — handles both https:// URLs and data: URIs
+      if (imageUrl.startsWith('data:')) {
+        const [header, b64] = imageUrl.split(',');
+        imageMimeType = header.split(':')[1].split(';')[0];
+        imageBuffer = Buffer.from(b64, 'base64');
+      } else {
+        const fetchRes = await fetch(imageUrl);
+        if (!fetchRes.ok) {
+          return NextResponse.json({ success: false, message: `Failed to fetch image: ${fetchRes.statusText}` }, { status: 502 });
+        }
+        imageMimeType = fetchRes.headers.get('content-type') ?? 'image/png';
+        imageBuffer = Buffer.from(await fetchRes.arrayBuffer());
       }
-      imageBuffer = Buffer.from(await fetchRes.arrayBuffer());
     }
 
     if (!prompt) {
@@ -65,30 +81,34 @@ Request: "${prompt}"`,
       }
     } catch {
       // If enhancement fails, use original prompt
-      enhancedPrompt = prompt;
     }
 
-    // --- Call GPT-Image-1 via AI Gateway ---
-    const { image } = await generateImage({
-      model: gateway.imageModel('openai/gpt-image-1'),
+    // --- Call GPT-Image-1 images.edit via OpenAI SDK ---
+    // OpenAI images.edit requires PNG format
+    const ext = imageMimeType.includes('png') ? 'image.png' : 'image.png';
+    const imageFileObj = await toFile(imageBuffer, ext, { type: 'image/png' });
+
+    const response = await openai.images.edit({
+      model: 'gpt-image-1',
+      image: imageFileObj,
       prompt: enhancedPrompt,
-      providerOptions: {
-        openai: {
-          image: imageBuffer,
-        },
-      },
+      n: 1,
+      size: '1024x1024',
     });
+
+    const b64 = response.data?.[0]?.b64_json;
+    if (!b64) {
+      return NextResponse.json({ success: false, message: 'No image returned from OpenAI.' }, { status: 500 });
+    }
 
     return NextResponse.json({
       success: true,
-      image: `data:image/png;base64,${image.base64}`,
+      image: `data:image/png;base64,${b64}`,
       enhancedPrompt,
     });
 
   } catch (error: any) {
     console.error('[ai-edit-image] Error:', error);
-
-    // If GPT-Image-1 not available, return a clear error
     const message = error?.message ?? 'AI image editing failed.';
     return NextResponse.json(
       { success: false, message },

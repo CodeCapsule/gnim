@@ -1515,7 +1515,8 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
           const newMessages = [...messages, userMsg];
           setMessages(newMessages);
           setInput("");
-          if (textareaRef.current) textareaRef.current.style.height = \"auto\";
+          if (textareaRef.current) textareaRef.current.style.height = "auto";
+
           setPendingFilter(null);
           setIsLoading(true);
 
