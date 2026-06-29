@@ -1,16 +1,21 @@
+import { experimental_generateImage as generateImage } from "ai";
+import { createGateway } from "@ai-sdk/gateway";
 import { ImageRouter } from "@/lib/agents/ImageRouter";
 import { NextResponse } from "next/server";
 
+export const maxDuration = 60; // GPT-Image-1 can take up to 30s
+
+const gateway = createGateway({
+  apiKey: process.env.AI_GATEWAY_API_KEY ?? "",
+});
+
 /**
- * Pollinations.ai model options:
- * - "flux"          → Best for accuracy and text rendering (FLUX.1-schnell)
- * - "flux-realism"  → Best for photorealistic images
- * - "turbo"         → Fast SDXL (creative, but poor at text)
- * - "gptimage"      → Experimental GPT-based model
+ * /api/generate-image
  *
- * For text-heavy prompts (business cards, certificates, posters),
- * we use "flux" with enhance=false and a portrait/card aspect ratio.
- * For creative imagery, we use "flux-realism" with enhance=true.
+ * Generates images using OpenAI GPT-Image-1 via the AI Gateway.
+ * Replaces the previous Pollinations.ai integration.
+ *
+ * Returns: { image: "data:image/png;base64,...", optimizedPrompt, warnings }
  */
 export async function POST(req: Request) {
   try {
@@ -27,7 +32,7 @@ export async function POST(req: Request) {
     // Handle character definition commands
     if (routerResult.intent === "character_define") {
       return NextResponse.json({
-        url: null,
+        image: null,
         message: `✅ Character saved! I'll remember their appearance for future images.`,
         warnings: [],
       });
@@ -42,43 +47,43 @@ export async function POST(req: Request) {
     const isTextHeavy = routerResult.isTextHeavy ?? false;
     const isPerson = /\b(person|man|woman|male|female|human|portrait|filipino|people|guy|girl|model|actor)\b/i.test(finalPrompt);
 
-    // --- Select model and dimensions based on prompt type ---
-    let model: string;
-    let width: number;
-    let height: number;
-    let enhance: boolean;
+    // --- Select size based on prompt type ---
+    let size: "1024x1024" | "1536x1024" | "1024x1536" = "1024x1024";
 
     if (isTextHeavy) {
-      // Business cards, certificates, posters, product labels, etc.
-      // Use FLUX with enhance=false (enhancement distorts text)
+      // Business cards, posters → landscape
       const isBusinessCard = /business card|id card|card/i.test(prompt);
-      model = "flux";
-      width = isBusinessCard ? 1050 : 1024;
-      height = isBusinessCard ? 600 : 768;
-      enhance = false;
+      size = isBusinessCard ? "1536x1024" : "1024x1024";
+    } else if (isPerson) {
+      // People/portraits → portrait orientation
+      size = "1024x1536";
     } else {
-      // Creative/artistic images — use flux-realism for photorealistic quality
-      model = "flux-realism";
-      width = isPerson ? 768 : 1024;   // Portrait ratio for people
-      height = isPerson ? 1024 : 576;  // Taller for portraits
-      enhance = true;
+      // Landscapes/scenes → landscape
+      size = "1536x1024";
     }
 
-    // --- Dispatch to Pollinations.ai ---
-    const { TextToImageAgent } = await import("@/lib/agents/TextToImageAgent");
-    const negativePrompt = TextToImageAgent.buildNegativePrompt(isTextHeavy, isPerson);
-    const encodedPrompt = encodeURIComponent(finalPrompt);
-    const encodedNeg = encodeURIComponent(negativePrompt);
-    const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&model=${model}&enhance=${enhance}&nologo=true&negative=${encodedNeg}&seed=${Math.floor(Math.random() * 1000000)}`;
+    // --- Generate via GPT-Image-1 ---
+    const result = await generateImage({
+      model: gateway.imageModel("openai/gpt-image-1"),
+      prompt: finalPrompt,
+      size,
+      providerOptions: {
+        openai: {
+          quality: "high",
+        },
+      },
+    });
+
+    const base64 = result.image.base64;
+    const dataUrl = `data:image/png;base64,${base64}`;
 
     // Record frame in storyboard for future scene continuity
-    ImageRouter.recordGeneration(conversationId ?? "default", finalPrompt, url);
+    ImageRouter.recordGeneration(conversationId ?? "default", finalPrompt, dataUrl);
 
     return NextResponse.json({
-      url,
+      image: dataUrl,
       optimizedPrompt: finalPrompt,
       isTextHeavy,
-      model,
       warnings: routerResult.warnings,
     });
   } catch (err: any) {

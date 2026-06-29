@@ -1330,7 +1330,7 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
         }
         
         if (!res.ok || data.error) throw new Error(data.error || "Image generation failed");
-        const imageMsg = `[GENERATED_IMAGE]:${data.url}\n\n*Generated image for: "${userText.trim()}"*`;
+        const imageMsg = `[GENERATED_IMAGE]:${data.image}\n\n*Generated image for: "${userText.trim()}"*`;
         const finalMessages: StoredMessage[] = [
           ...newMessages,
           { id: assistantId, role: "assistant", content: imageMsg },
