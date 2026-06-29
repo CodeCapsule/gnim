@@ -45,34 +45,19 @@ export async function POST(req: Request) {
 
     const finalPrompt = routerResult.finalPrompt ?? prompt.trim();
     const isTextHeavy = routerResult.isTextHeavy ?? false;
-    const isPerson = /\b(person|man|woman|male|female|human|portrait|filipino|people|guy|girl|model|actor)\b/i.test(finalPrompt);
 
-    // --- Select size based on prompt type ---
-    let size: "1024x1024" | "1536x1024" | "1024x1536" = "1024x1024";
-
-    if (isTextHeavy) {
-      // Business cards, posters → landscape
-      const isBusinessCard = /business card|id card|card/i.test(prompt);
-      size = isBusinessCard ? "1536x1024" : "1024x1024";
-    } else if (isPerson) {
-      // People/portraits → portrait orientation
-      size = "1024x1536";
-    } else {
-      // Landscapes/scenes → landscape
-      size = "1536x1024";
-    }
-
-    // --- Generate via GPT-Image-1 ---
+    // --- Generate via GPT-Image-1 (standard quality for faster response) ---
     const result = await generateImage({
-      model: gateway.imageModel("openai/gpt-image-1"),
+      model: gateway.imageModel('openai/gpt-image-1'),
       prompt: finalPrompt,
-      size,
+      size: '1024x1024',
       providerOptions: {
         openai: {
-          quality: "high",
+          quality: 'standard', // 'standard' is ~3x faster than 'high'
         },
       },
     });
+
 
     const base64 = result.image.base64;
     const dataUrl = `data:image/png;base64,${base64}`;

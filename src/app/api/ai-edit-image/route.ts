@@ -1,25 +1,26 @@
-import OpenAI from 'openai';
-import { generateText } from 'ai';
+import { experimental_generateImage as generateImage, generateText } from 'ai';
 import { createGateway } from '@ai-sdk/gateway';
 import { NextRequest, NextResponse } from 'next/server';
-import { toFile } from 'openai';
+
+export const maxDuration = 60;
 
 const gateway = createGateway({
   apiKey: process.env.AI_GATEWAY_API_KEY ?? '',
 });
 
-// OpenAI SDK for image editing (images.edit endpoint)
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY ?? process.env.AI_GATEWAY_API_KEY ?? '',
-});
-
 /**
  * /api/ai-edit-image
  *
- * AI-powered image editing using OpenAI gpt-image-1 images.edit endpoint.
+ * AI-powered image editing using ONLY the AI Gateway (no separate OPENAI_API_KEY needed).
+ *
+ * Strategy: Vision-guided regeneration
+ *   1. Gemini Flash vision → analyze the image → detailed description
+ *   2. Combine description + edit instruction into a rich prompt
+ *   3. GPT-Image-1 via gateway → generate new image with the edits applied
+ *
  * Accepts either:
- *   - FormData with `image` (File) + `prompt` (string)       — uploaded images
- *   - JSON body  with `imageUrl` (string) + `prompt` (string) — previously generated images
+ *   - FormData with `image` (File) + `prompt` (string)
+ *   - JSON body  with `imageUrl` (data: URI or https://) + `prompt` (string)
  *
  * Returns: { success: true, image: "data:image/png;base64,..." }
  */
@@ -27,10 +28,10 @@ export async function POST(req: NextRequest) {
   try {
     const contentType = req.headers.get('content-type') ?? '';
     let prompt = '';
-    let imageBuffer: Buffer | null = null;
-    let imageMimeType = 'image/png';
+    let imageBase64 = '';
+    let imageMimeType: 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp' = 'image/png';
 
-    // --- Accept both FormData (uploaded file) and JSON (imageUrl) ---
+    // --- Parse input: FormData (uploaded file) or JSON (imageUrl) ---
     if (contentType.includes('multipart/form-data')) {
       const formData = await req.formData();
       prompt = (formData.get('prompt') as string) ?? '';
@@ -38,8 +39,10 @@ export async function POST(req: NextRequest) {
       if (!imageFile) {
         return NextResponse.json({ success: false, message: 'Missing image file.' }, { status: 400 });
       }
-      imageMimeType = imageFile.type || 'image/png';
-      imageBuffer = Buffer.from(await imageFile.arrayBuffer());
+      const type = imageFile.type;
+      imageMimeType = (type === 'image/jpeg' || type === 'image/gif' || type === 'image/webp')
+        ? type : 'image/png';
+      imageBase64 = Buffer.from(await imageFile.arrayBuffer()).toString('base64');
     } else {
       const body = await req.json();
       prompt = body.prompt ?? '';
@@ -47,18 +50,21 @@ export async function POST(req: NextRequest) {
       if (!imageUrl) {
         return NextResponse.json({ success: false, message: 'Missing imageUrl.' }, { status: 400 });
       }
-      // Fetch the image — handles both https:// URLs and data: URIs
       if (imageUrl.startsWith('data:')) {
         const [header, b64] = imageUrl.split(',');
-        imageMimeType = header.split(':')[1].split(';')[0];
-        imageBuffer = Buffer.from(b64, 'base64');
+        const type = header.split(':')[1].split(';')[0];
+        imageMimeType = (type === 'image/jpeg' || type === 'image/gif' || type === 'image/webp')
+          ? type : 'image/png';
+        imageBase64 = b64;
       } else {
         const fetchRes = await fetch(imageUrl);
         if (!fetchRes.ok) {
-          return NextResponse.json({ success: false, message: `Failed to fetch image: ${fetchRes.statusText}` }, { status: 502 });
+          return NextResponse.json({ success: false, message: `Failed to fetch image.` }, { status: 502 });
         }
-        imageMimeType = fetchRes.headers.get('content-type') ?? 'image/png';
-        imageBuffer = Buffer.from(await fetchRes.arrayBuffer());
+        const type = fetchRes.headers.get('content-type') ?? 'image/png';
+        imageMimeType = (type === 'image/jpeg' || type === 'image/gif' || type === 'image/webp')
+          ? type : 'image/png';
+        imageBase64 = Buffer.from(await fetchRes.arrayBuffer()).toString('base64');
       }
     }
 
@@ -66,52 +72,75 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, message: 'Missing prompt.' }, { status: 400 });
     }
 
-    // --- Enhance prompt for accuracy ---
-    let enhancedPrompt = prompt;
+    // --- Step 1: Gemini Vision — analyze the existing image ---
+    let imageDescription = '';
     try {
       const { text } = await generateText({
         model: gateway('google/gemini-2.0-flash'),
-        prompt: `You are an image editing assistant. Convert this edit request into a clear, 
-specific instruction for an AI image editor. Preserve the user's intent exactly. 
-Only output the improved prompt — no explanations.
-Request: "${prompt}"`,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'image' as const,
+                image: imageBase64,
+                mediaType: imageMimeType,
+              },
+              {
+                type: 'text',
+                text: 'Describe this image in rich detail: subject, pose, clothing, expression, background, lighting, color palette, style, and mood. Be thorough — your description will be used to regenerate this image with modifications.',
+              },
+            ],
+          },
+        ],
       });
-      if (text && text.trim().length > 0) {
-        enhancedPrompt = text.trim();
-      }
-    } catch {
-      // If enhancement fails, use original prompt
+      imageDescription = text.trim();
+    } catch (err) {
+      console.warn('[ai-edit-image] Vision step failed, using prompt only:', err);
+      imageDescription = '';
     }
 
-    // --- Call GPT-Image-1 images.edit via OpenAI SDK ---
-    // OpenAI images.edit requires PNG format
-    const ext = imageMimeType.includes('png') ? 'image.png' : 'image.png';
-    const imageFileObj = await toFile(imageBuffer, ext, { type: 'image/png' });
+    // --- Step 2: Build the combined edit prompt ---
+    let finalPrompt: string;
 
-    const response = await openai.images.edit({
-      model: 'gpt-image-1',
-      image: imageFileObj,
-      prompt: enhancedPrompt,
-      n: 1,
+    if (imageDescription) {
+      finalPrompt = `Based on this image: ${imageDescription}
+
+Apply this modification: ${prompt}
+
+Important: Keep all other visual elements (subject appearance, style, lighting, background) exactly the same. Only apply the requested change. High quality, photorealistic, detailed.`;
+    } else {
+      // Fallback: vision failed, use prompt only
+      finalPrompt = `${prompt}. High quality, photorealistic, highly detailed, professional photography.`;
+    }
+
+    // --- Step 3: Generate new image via GPT-Image-1 ---
+    const result = await generateImage({
+      model: gateway.imageModel('openai/gpt-image-1'),
+      prompt: finalPrompt,
       size: '1024x1024',
+      providerOptions: {
+        openai: {
+          quality: 'standard',
+        },
+      },
     });
 
-    const b64 = response.data?.[0]?.b64_json;
-    if (!b64) {
-      return NextResponse.json({ success: false, message: 'No image returned from OpenAI.' }, { status: 500 });
+    const base64 = result.image.base64;
+    if (!base64) {
+      return NextResponse.json({ success: false, message: 'No image returned.' }, { status: 500 });
     }
 
     return NextResponse.json({
       success: true,
-      image: `data:image/png;base64,${b64}`,
-      enhancedPrompt,
+      image: `data:image/png;base64,${base64}`,
+      enhancedPrompt: finalPrompt,
     });
 
   } catch (error: any) {
     console.error('[ai-edit-image] Error:', error);
-    const message = error?.message ?? 'AI image editing failed.';
     return NextResponse.json(
-      { success: false, message },
+      { success: false, message: error?.message ?? 'AI image editing failed.' },
       { status: 500 }
     );
   }
