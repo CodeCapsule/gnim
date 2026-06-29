@@ -1,19 +1,20 @@
-import { experimental_generateImage as generateImage } from "ai";
-import { createGateway } from "@ai-sdk/gateway";
-import { ImageRouter } from "@/lib/agents/ImageRouter";
-import { NextResponse } from "next/server";
+import { experimental_generateImage as generateImage } from 'ai';
+import { createGateway } from '@ai-sdk/gateway';
+import { ImageRouter } from '@/lib/agents/ImageRouter';
+import { NextResponse } from 'next/server';
 
-export const maxDuration = 60; // GPT-Image-1 can take up to 30s
+export const maxDuration = 60;
 
 const gateway = createGateway({
-  apiKey: process.env.AI_GATEWAY_API_KEY ?? "",
+  apiKey: process.env.AI_GATEWAY_API_KEY ?? '',
 });
 
 /**
  * /api/generate-image
  *
- * Generates images using OpenAI GPT-Image-1 via the AI Gateway.
- * Replaces the previous Pollinations.ai integration.
+ * Generates images using OpenAI GPT-Image-1 via the Vercel AI Gateway.
+ * - Uses quality 'low' for fastest generation (~8-12 seconds)
+ * - No separate OPENAI_API_KEY needed — routes through AI Gateway
  *
  * Returns: { image: "data:image/png;base64,...", optimizedPrompt, warnings }
  */
@@ -22,15 +23,15 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { prompt, conversationId } = body;
 
-    if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
-      return NextResponse.json({ error: "Missing or invalid prompt" }, { status: 400 });
+    if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
+      return NextResponse.json({ error: 'Missing or invalid prompt' }, { status: 400 });
     }
 
-    // --- Run through the multi-agent Image Router ---
-    const routerResult = await ImageRouter.route(prompt, conversationId ?? "default", false);
+    // --- Run through the multi-agent Image Router (Gemini Flash prompt enhancement) ---
+    const routerResult = await ImageRouter.route(prompt, conversationId ?? 'default', false);
 
     // Handle character definition commands
-    if (routerResult.intent === "character_define") {
+    if (routerResult.intent === 'character_define') {
       return NextResponse.json({
         image: null,
         message: `✅ Character saved! I'll remember their appearance for future images.`,
@@ -46,24 +47,28 @@ export async function POST(req: Request) {
     const finalPrompt = routerResult.finalPrompt ?? prompt.trim();
     const isTextHeavy = routerResult.isTextHeavy ?? false;
 
-    // --- Generate via GPT-Image-1 (standard quality for faster response) ---
+    // --- Generate via GPT-Image-1 via AI Gateway ---
+    // Using quality 'low' for fastest generation (~8-12s vs 25-30s for 'high')
     const result = await generateImage({
       model: gateway.imageModel('openai/gpt-image-1'),
       prompt: finalPrompt,
       size: '1024x1024',
       providerOptions: {
         openai: {
-          quality: 'auto',
+          quality: 'low',
         },
       },
     });
 
-
     const base64 = result.image.base64;
+    if (!base64) {
+      return NextResponse.json({ error: 'No image returned from GPT-Image-1' }, { status: 500 });
+    }
+
     const dataUrl = `data:image/png;base64,${base64}`;
 
-    // Record frame in storyboard for future scene continuity
-    ImageRouter.recordGeneration(conversationId ?? "default", finalPrompt, dataUrl);
+    // Record frame in storyboard for scene continuity
+    ImageRouter.recordGeneration(conversationId ?? 'default', finalPrompt, dataUrl);
 
     return NextResponse.json({
       image: dataUrl,
@@ -72,8 +77,8 @@ export async function POST(req: Request) {
       warnings: routerResult.warnings,
     });
   } catch (err: any) {
-    const message = err?.message ?? "Unknown error";
-    console.error("[generate-image] Error:", message);
+    const message = err?.message ?? 'Unknown error';
+    console.error('[generate-image] Error:', message);
     return NextResponse.json({ error: `Image generation failed: ${message}` }, { status: 500 });
   }
 }
