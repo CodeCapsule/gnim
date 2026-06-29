@@ -121,7 +121,7 @@ Important: Keep all other visual elements (subject appearance, style, lighting, 
       size: '1024x1024',
       providerOptions: {
         openai: {
-          quality: 'standard',
+          quality: 'auto',
         },
       },
     });

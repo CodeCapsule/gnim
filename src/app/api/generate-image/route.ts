@@ -53,7 +53,7 @@ export async function POST(req: Request) {
       size: '1024x1024',
       providerOptions: {
         openai: {
-          quality: 'standard', // 'standard' is ~3x faster than 'high'
+          quality: 'auto',
         },
       },
     });
