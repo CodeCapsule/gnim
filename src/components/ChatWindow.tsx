@@ -1924,14 +1924,20 @@ export default function ChatWindow({ conversation, onUpdate }: Props) {
                 {/* Send/Stop Button + remaining counter */}
                 <div className="flex-shrink-0 flex items-center gap-2">
 
-                  {/* Remaining messages pill — show when <= 5 left and not limited */}
-                  {!isLimited && remaining <= 5 && (
-                    <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/25 text-orange-400 text-[11px] font-medium mr-2">
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  {/* Remaining messages pill — always visible */}
+                  {!isLimited && (
+                    <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium mr-1 transition-colors ${
+                      remaining <= 5
+                        ? "bg-red-500/10 border border-red-500/25 text-red-400"
+                        : remaining <= 20
+                        ? "bg-orange-500/10 border border-orange-500/25 text-orange-400"
+                        : "bg-zinc-800/60 border border-zinc-700/40 text-zinc-500"
+                    }`}>
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
                         <path d="M12 8v4l3 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                       </svg>
-                      {remaining} left
+                      {remaining}/{100} msgs
                     </div>
                   )}
 

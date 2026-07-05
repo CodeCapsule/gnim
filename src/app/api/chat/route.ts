@@ -15,7 +15,8 @@ export async function POST(req: Request) {
     // 1. Rate Limiting
     const ip = req.headers.get("x-forwarded-for") ?? "anonymous";
     const record = incrementRateLimit(ip);
-    
+    const remaining = Math.max(0, MAX_MESSAGES - record.count);
+
     if (record.count > MAX_MESSAGES) {
       const msUntilReset = Math.max(0, RATE_LIMIT_WINDOW_MS - (Date.now() - record.windowStart));
       const retryAfterSeconds = Math.ceil(msUntilReset / 1000);
@@ -574,6 +575,8 @@ export async function POST(req: Request) {
         "Transfer-Encoding": "chunked",
         "Cache-Control": "no-cache",
         "X-Accel-Buffering": "no",
+        "X-RateLimit-Remaining": String(remaining),
+        "X-RateLimit-Limit": String(MAX_MESSAGES),
       },
     });
   } catch (error: any) {
