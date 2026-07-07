@@ -387,17 +387,44 @@ function CodeBlock({ lang, ext, code, children }: { lang: string; ext: string; c
 const globalImageCache = new Map<string, string>();
 
 // ---------- Generate Image Widget ----------
-function GenerateImageWidget({
-  prompt,
-}: {
-  prompt: string;
-}) {
-  const [retryCount, setRetryCount] = useState(0);
+const IMAGE_STATUS_MSGS = [
+  "Composing the scene…",
+  "Rendering light and shadows…",
+  "Painting fine details…",
+  "Finalizing colors…",
+  "Almost there…",
+];
 
-  const [state, setState] = useState<"loading" | "done" | "error">(globalImageCache.has(prompt) ? "done" : "loading");
+function GenerateImageWidget({ prompt }: { prompt: string }) {
+  const [retryCount, setRetryCount] = useState(0);
+  const [state, setState] = useState<"loading" | "done" | "error">(
+    globalImageCache.has(prompt) ? "done" : "loading"
+  );
   const [imageUrl, setImageUrl] = useState<string>(globalImageCache.get(prompt) || "");
   const [errorMsg, setErrorMsg] = useState("");
+  const [elapsed, setElapsed] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const [statusIdx, setStatusIdx] = useState(0);
   const sentRef = useRef(globalImageCache.has(prompt));
+  const startRef = useRef<number>(Date.now());
+
+  // Elapsed timer + fake progress bar
+  useEffect(() => {
+    if (state !== "loading") return;
+    startRef.current = Date.now();
+    setElapsed(0);
+    setProgress(0);
+    setStatusIdx(0);
+
+    const interval = setInterval(() => {
+      const secs = Math.floor((Date.now() - startRef.current) / 1000);
+      setElapsed(secs);
+      // Progress asymptotically approaches 95% — never hits 100 until done
+      setProgress(Math.min(95, 100 * (1 - Math.exp(-secs / 18))));
+      setStatusIdx(Math.min(Math.floor(secs / 4), IMAGE_STATUS_MSGS.length - 1));
+    }, 500);
+    return () => clearInterval(interval);
+  }, [state, retryCount]);
 
   useEffect(() => {
     if (sentRef.current) return;
@@ -405,14 +432,14 @@ function GenerateImageWidget({
 
     async function doGenerate() {
       try {
-        const res = await fetch(`/api/generate-image`, {
+        const res = await fetch("/api/generate-image", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ prompt }),
         });
         const contentType = res.headers.get("content-type");
-        let data;
-        if (contentType && contentType.includes("application/json")) {
+        let data: any;
+        if (contentType?.includes("application/json")) {
           data = await res.json();
         } else {
           const text = await res.text();
@@ -423,8 +450,10 @@ function GenerateImageWidget({
           setState("error");
           return;
         }
-        globalImageCache.set(prompt, data.url);
-        setImageUrl(data.url);
+        const imgSrc = data.image ?? data.url ?? "";
+        globalImageCache.set(prompt, imgSrc);
+        setImageUrl(imgSrc);
+        setProgress(100);
         setState("done");
       } catch (e: any) {
         setErrorMsg(e.message ?? "Network error");
@@ -436,19 +465,91 @@ function GenerateImageWidget({
 
   const handleRetry = () => {
     setState("loading");
-    setRetryCount(c => c + 1);
-    sentRef.current = false; // allow useEffect to fire again
+    setRetryCount((c) => c + 1);
+    sentRef.current = false;
   };
 
   if (state === "loading") {
     return (
       <div className="flex flex-col gap-3 mt-2 mb-4">
-        <div className="rounded-xl p-6 w-full max-w-[480px] bg-zinc-900/60 border border-zinc-800/70 shadow-sm flex flex-col items-center justify-center min-h-[240px]">
-          <div className="w-10 h-10 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mb-4" />
-          <div className="text-[13px] font-medium text-zinc-300">
-            {retryCount > 0 ? `Retrying... (${retryCount})` : "Generating image..."}
+        <div
+          className="relative rounded-2xl overflow-hidden w-full max-w-[480px] min-h-[280px] border border-zinc-800/80 shadow-xl"
+          style={{ background: "linear-gradient(135deg, #0f0f14 0%, #14121e 100%)" }}
+        >
+          {/* Animated shimmer background */}
+          <div
+            className="absolute inset-0"
+            style={{
+              background: "linear-gradient(110deg, transparent 30%, rgba(139,92,246,0.06) 50%, transparent 70%)",
+              backgroundSize: "200% 100%",
+              animation: "img-shimmer 2s linear infinite",
+            }}
+          />
+
+          {/* Faux canvas grid */}
+          <div className="absolute inset-0 opacity-[0.04]"
+            style={{
+              backgroundImage: "repeating-linear-gradient(0deg,#fff 0,#fff 1px,transparent 1px,transparent 40px),repeating-linear-gradient(90deg,#fff 0,#fff 1px,transparent 1px,transparent 40px)",
+            }}
+          />
+
+          {/* Center content */}
+          <div className="relative flex flex-col items-center justify-center h-full min-h-[280px] gap-4 px-8">
+            {/* Pulsing violet orb */}
+            <div className="relative w-14 h-14">
+              <div className="absolute inset-0 rounded-full bg-violet-600/20 animate-ping" style={{ animationDuration: "1.5s" }} />
+              <div className="absolute inset-2 rounded-full bg-violet-500/30 animate-pulse" />
+              <div className="absolute inset-4 rounded-full bg-violet-400/60" style={{ animation: "img-core 1.8s ease-in-out infinite" }} />
+              {/* Sparkle dot */}
+              <div className="absolute top-0 right-0 w-2.5 h-2.5 rounded-full bg-indigo-300"
+                style={{ animation: "thinking-orbit 2s linear infinite", transformOrigin: "5px 28px" }} />
+            </div>
+
+            {/* Status text */}
+            <div className="flex flex-col items-center gap-1">
+              <span
+                className="text-[14px] font-semibold tracking-wide"
+                style={{
+                  background: "linear-gradient(90deg,#818cf8,#a78bfa,#818cf8)",
+                  backgroundSize: "200% auto",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  backgroundClip: "text",
+                  animation: "thinking-shimmer 2s linear infinite",
+                }}
+              >
+                {retryCount > 0 ? `Retrying… (attempt ${retryCount + 1})` : IMAGE_STATUS_MSGS[statusIdx]}
+              </span>
+              <span className="text-[11px] text-zinc-600">{elapsed}s elapsed</span>
+            </div>
+
+            {/* Progress bar */}
+            <div className="w-full max-w-[260px] h-[3px] rounded-full bg-zinc-800 overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${progress}%`,
+                  background: "linear-gradient(90deg, #6366f1, #a78bfa)",
+                }}
+              />
+            </div>
+
+            {/* Prompt preview */}
+            <div className="text-[10px] text-zinc-700 italic text-center max-w-[90%] line-clamp-2">
+              "{prompt}"
+            </div>
           </div>
-          <div className="text-[11px] text-zinc-500 mt-2 text-center max-w-[80%] truncate">"{prompt}"</div>
+
+          <style>{`
+            @keyframes img-shimmer {
+              from { background-position: 200% 0; }
+              to   { background-position: -200% 0; }
+            }
+            @keyframes img-core {
+              0%,100% { opacity:0.6; transform:scale(0.85); }
+              50%      { opacity:1;   transform:scale(1.2); box-shadow:0 0 12px 4px rgba(167,139,250,0.5); }
+            }
+          `}</style>
         </div>
       </div>
     );
@@ -461,7 +562,7 @@ function GenerateImageWidget({
         <div className="flex flex-col min-w-0 w-full">
           <div className="text-[13px] font-semibold text-red-400">Failed to generate image</div>
           <div className="text-[12px] text-red-400/80 mt-0.5 mb-2">{errorMsg || "Image service unavailable or overloaded."}</div>
-          <button 
+          <button
             onClick={handleRetry}
             className="self-start text-[11px] font-medium px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-md transition-colors"
           >
@@ -478,7 +579,7 @@ function GenerateImageWidget({
         src={imageUrl}
         alt={prompt}
         title={prompt}
-        className="rounded-xl max-w-full max-h-[480px] object-contain border border-zinc-800 shadow-xl"
+        className="rounded-xl max-w-full max-h-[520px] object-contain border border-zinc-800 shadow-xl"
         onError={(e) => {
           setState("error");
           (e.target as HTMLImageElement).style.display = "none";
