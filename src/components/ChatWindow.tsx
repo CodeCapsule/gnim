@@ -997,10 +997,92 @@ const MessageBubble = React.memo(function MessageBubble({
 // ---------- Thinking / Searching Indicator ----------
 function ThinkingIndicator({ text = "Thinking" }: { text?: string }) {
   return (
-    <div className="flex justify-center items-center py-6 w-full">
-      <div className="text-[14px] text-[#a3a3a3] font-medium tracking-wide animate-pulse">
-        {text}
+    <div className="flex items-center gap-3 py-3 px-1">
+      {/* Neural pulse orb */}
+      <div className="relative flex-shrink-0 w-7 h-7">
+        {/* Outer ring — slow spin */}
+        <div
+          className="absolute inset-0 rounded-full border border-violet-500/30"
+          style={{ animation: "thinking-spin 3s linear infinite" }}
+        />
+        {/* Middle ring — faster counter-spin */}
+        <div
+          className="absolute inset-[3px] rounded-full border border-indigo-400/40"
+          style={{ animation: "thinking-spin-reverse 2s linear infinite" }}
+        />
+        {/* Inner core — pulse glow */}
+        <div
+          className="absolute inset-[7px] rounded-full bg-violet-500/80"
+          style={{ animation: "thinking-core 1.5s ease-in-out infinite" }}
+        />
+        {/* Orbiting dot */}
+        <div
+          className="absolute w-1.5 h-1.5 rounded-full bg-indigo-400"
+          style={{
+            top: "50%",
+            left: "50%",
+            marginTop: "-3px",
+            marginLeft: "-3px",
+            transformOrigin: "3px 16px",
+            animation: "thinking-orbit 1.8s linear infinite",
+          }}
+        />
       </div>
+
+      {/* Shimmer text with travelling wave */}
+      <div className="flex items-center gap-[3px]">
+        <span
+          className="text-[13px] font-semibold tracking-wide"
+          style={{
+            background: "linear-gradient(90deg, #6366f1 0%, #a78bfa 40%, #818cf8 60%, #6366f1 100%)",
+            backgroundSize: "200% auto",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            backgroundClip: "text",
+            animation: "thinking-shimmer 2s linear infinite",
+          }}
+        >
+          {text}
+        </span>
+        {/* Animated trailing dots */}
+        {[0, 1, 2].map((i) => (
+          <span
+            key={i}
+            className="inline-block w-[3px] h-[3px] rounded-full bg-violet-400"
+            style={{
+              animation: `thinking-dot 1.2s ease-in-out ${i * 0.2}s infinite`,
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Keyframes injected inline */}
+      <style>{`
+        @keyframes thinking-spin {
+          from { transform: rotate(0deg); }
+          to   { transform: rotate(360deg); }
+        }
+        @keyframes thinking-spin-reverse {
+          from { transform: rotate(0deg); }
+          to   { transform: rotate(-360deg); }
+        }
+        @keyframes thinking-core {
+          0%, 100% { opacity: 0.6; transform: scale(0.85); }
+          50%       { opacity: 1;   transform: scale(1.15); box-shadow: 0 0 8px 2px rgba(139,92,246,0.6); }
+        }
+        @keyframes thinking-orbit {
+          from { transform: rotate(0deg) translateY(-11px); }
+          to   { transform: rotate(360deg) translateY(-11px); }
+        }
+        @keyframes thinking-shimmer {
+          from { background-position: 200% center; }
+          to   { background-position: -200% center; }
+        }
+        @keyframes thinking-dot {
+          0%, 80%, 100% { opacity: 0.2; transform: translateY(0); }
+          40%            { opacity: 1;   transform: translateY(-3px); }
+        }
+      `}</style>
     </div>
   );
 }
